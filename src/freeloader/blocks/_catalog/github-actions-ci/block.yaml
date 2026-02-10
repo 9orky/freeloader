@@ -1,0 +1,29 @@
+block:
+  name: github-actions-ci
+  description: Generate GitHub Actions CI/CD workflow with test, build, and release-based deploy
+  runner: generator
+  layer: build
+
+provides: {}
+
+requires:
+  source.repo_name:
+    description: For context only
+  registry.host:
+    description: Registry host for docker login
+  registry.image_path:
+    description: Full image path for docker push
+  deploy.webhook_url:
+    description: Deploy trigger URL
+    optional: true
+
+config:
+  test_command:
+    type: string
+    default: "npm test"
+  build_platforms:
+    type: list
+    default: ["linux/amd64"]
+  node_version:
+    type: string
+    default: "22"

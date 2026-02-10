@@ -1,0 +1,24 @@
+block:
+  name: dockerfile
+  description: Generate production Dockerfile and .dockerignore
+  runner: generator
+  layer: build
+
+provides: {}
+
+requires: {}
+
+config:
+  template:
+    type: string
+    default: "auto"
+  node_version:
+    type: string
+    default: "22"
+  python_version:
+    type: string
+    default: "3.12"
+  serve_with:
+    type: string
+    default: "nginx"
+    choices: ["nginx", "node", "none"]

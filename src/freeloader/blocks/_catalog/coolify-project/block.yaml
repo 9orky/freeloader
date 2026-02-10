@@ -1,0 +1,28 @@
+block:
+  name: coolify-project
+  description: Create a Coolify project to group services and applications
+  runner: terraform
+  layer: platform
+  provider: coolify
+  required_secrets:
+    - COOLIFY_TOKEN
+
+provides:
+  coolify.project_uuid:
+    type: string
+  coolify.project_name:
+    type: string
+
+requires: {}
+
+config:
+  name:
+    type: string
+    required: true
+  description:
+    type: string
+    default: ""
+  coolify_endpoint:
+    type: string
+    required: true
+    description: Base URL of Coolify API (e.g. https://coolify.example.com/api/v1)
