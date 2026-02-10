@@ -1,5 +1,5 @@
 from freeloader.credentials.resolver import SecretResolver
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.credentials.vault import SecretVault
 
 

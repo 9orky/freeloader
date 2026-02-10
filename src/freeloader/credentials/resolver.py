@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.credentials.vault import SecretVault
 from freeloader.projects.models import ProjectManifest
 

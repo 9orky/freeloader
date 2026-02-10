@@ -1,4 +1,4 @@
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.projects.config import ConfigLoader
 from freeloader.projects.state import StateManager
 from freeloader.projects.usecases.init_project import InitProjectUseCases

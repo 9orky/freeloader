@@ -1,4 +1,4 @@
-from freeloader.blocks.models import RunnerType
+from freeloader.pipeline.blocks.models import RunnerType
 from freeloader.pipeline.runners.base import BaseRunner
 
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from freeloader.blocks.models import RunnerType
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.models import RunnerType
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.credentials.vault import SecretVault
 from freeloader.pipeline.dag import DAGResolver
 from freeloader.pipeline.orchestrator import Orchestrator, Preflight
@@ -11,6 +11,7 @@ from freeloader.pipeline.runners.api import APIRunner
 from freeloader.pipeline.runners.generator import GeneratorRunner
 from freeloader.pipeline.runners.terraform import TerraformRunner
 from freeloader.pipeline.usecases.apply import ApplyUseCases
+from freeloader.pipeline.usecases.blocks import BlockUseCases
 from freeloader.pipeline.usecases.generate import GenerateUseCases
 from freeloader.projects.config import ConfigLoader
 from freeloader.projects.state import StateManager
@@ -67,3 +68,6 @@ class PipelineFactory:
     def generate_usecases(self, output_dir: Path) -> GenerateUseCases:
         preflight = Preflight(DAGResolver(), self._registry, self._vault)
         return GenerateUseCases(preflight, self._registry, output_dir)
+
+    def block_usecases(self) -> BlockUseCases:
+        return BlockUseCases(self._registry)

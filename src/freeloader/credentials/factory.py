@@ -1,4 +1,4 @@
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.credentials.checkers import CheckerRegistry
 from freeloader.credentials.usecases.providers import ProviderUseCases
 from freeloader.credentials.usecases.secrets import SecretUseCases

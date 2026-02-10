@@ -40,4 +40,4 @@ def hosts_path() -> Path:
 
 
 def bundled_blocks_dir() -> Path:
-    return Path(__file__).resolve().parent.parent / "blocks" / "_catalog"
+    return Path(__file__).resolve().parent.parent / "pipeline" / "blocks" / "_catalog"

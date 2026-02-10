@@ -5,7 +5,6 @@ from typing import Annotated
 import typer
 
 from freeloader import __version__
-from freeloader.blocks.cli import blocks_app
 from freeloader.credentials.cli import credentials_app
 from freeloader.hosts.cli import hosts_app
 from freeloader.pipeline.cli import pipeline_app
@@ -18,7 +17,6 @@ app = typer.Typer(
     no_args_is_help=True,
     help="Freeloader CLI",
 )
-app.add_typer(blocks_app)
 app.add_typer(credentials_app)
 app.add_typer(hosts_app)
 app.add_typer(pipeline_app)

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from freeloader.blocks.models import BlockContract, ConfigField, RunnerType
+from freeloader.pipeline.blocks.models import BlockContract, ConfigField, RunnerType
 from freeloader.shared.paths import blocks_dir, bundled_blocks_dir
 from freeloader.shared.yaml_io import load_yaml_model
 

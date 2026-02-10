@@ -1,4 +1,4 @@
-from freeloader.blocks.usecases import BlockUseCases
+from freeloader.pipeline.usecases.blocks import BlockUseCases
 
 
 class TestBlocksList:

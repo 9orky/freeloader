@@ -1,7 +1,7 @@
 from collections import defaultdict, deque
 from dataclasses import dataclass
 
-from freeloader.blocks.models import BlockContract
+from freeloader.pipeline.blocks.models import BlockContract
 from freeloader.projects.models import BlockRef
 from freeloader.shared.errors import FreloaderError
 

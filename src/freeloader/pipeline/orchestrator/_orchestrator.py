@@ -8,7 +8,7 @@ from freeloader.pipeline.progress import ProgressTracker
 from freeloader.projects.models import ProjectManifest
 
 if TYPE_CHECKING:
-    from freeloader.blocks.registry import BlockRegistry
+    from freeloader.pipeline.blocks.registry import BlockRegistry
     from freeloader.credentials.vault import SecretVault
     from freeloader.pipeline.runners import RunnerRegistry
     from freeloader.projects.config import GlobalConfig

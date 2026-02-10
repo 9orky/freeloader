@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.credentials.checkers import CheckerRegistry, CredentialStatus
 from freeloader.credentials.policies import collect_provider_secrets, store_missing_secrets, collect_all_providers
 from freeloader.credentials.resolver import SecretResolver

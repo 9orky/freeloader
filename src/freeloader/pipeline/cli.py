@@ -6,7 +6,6 @@ from freeloader.projects.discovery import ProjectDiscovery
 from freeloader.projects.models import ProjectManifest
 from freeloader.projects.policies import validate_manifest_exists
 from freeloader.factory import Factory
-from freeloader.pipeline.usecases.generate import GenerateUseCases
 from freeloader.shared.console import confirm, console, info, print_panel, print_table, spinner, success
 from freeloader.shared.errors import handle_errors
 from freeloader.shared.yaml_io import load_yaml_model
@@ -17,6 +16,22 @@ pipeline_app = typer.Typer(
 generate_app = typer.Typer(
     name="generate", help="Generate files from generator blocks")
 pipeline_app.add_typer(generate_app)
+
+
+@pipeline_app.command("blocks", help="List available blocks")
+@handle_errors
+def blocks_list(layer: str = typer.Option(None, help="Filter by layer")) -> None:
+    result = Factory().pipeline.block_usecases().list(layer)
+    if not result.blocks:
+        info("No blocks found" + (f" for layer '{layer}'" if layer else ""))
+        return
+    rows = [
+        [b.name, b.layer, b.runner, ", ".join(
+            b.provides) or "—", ", ".join(b.requires) or "—"]
+        for b in result.blocks
+    ]
+    print_table("Available Blocks", [
+                "Name", "Layer", "Runner", "Provides", "Requires"], rows)
 
 
 def _require_manifest() -> tuple[ProjectManifest, Path]:
@@ -133,7 +148,7 @@ def generate_run(
 ) -> None:
     manifest, _ = _require_manifest()
     factory = Factory()
-    uc = GenerateUseCases(factory.blocks.registry, Path(output_dir))
+    uc = factory.pipeline.generate_usecases(Path(output_dir))
     result = uc.generate(manifest)
     if not result.generated_block_ids:
         info("No generator blocks in this project")

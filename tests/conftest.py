@@ -2,14 +2,14 @@ from pathlib import Path
 
 import pytest
 
-from freeloader.blocks.models import BlockContract
+from freeloader.pipeline.blocks.models import BlockContract
 from freeloader.projects.models import BlockRef, ProjectInfo, ProjectManifest
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.projects.config import ConfigLoader
 from freeloader.credentials.checkers import CredentialStatus, CheckerRegistry
 from freeloader.projects.state import StateManager
 from freeloader.credentials.vault import SecretVault
-from freeloader.blocks.usecases import BlockUseCases
+from freeloader.pipeline.usecases.blocks import BlockUseCases
 from freeloader.credentials.usecases.providers import ProviderUseCases
 from freeloader.credentials.usecases.secrets import SecretUseCases
 from freeloader.projects.usecases.status import StatusUseCases

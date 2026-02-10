@@ -5,11 +5,11 @@ from pathlib import Path
 from freeloader.pipeline.context import ExecutionContext
 from freeloader.pipeline.dag import ResolvedBlock
 from freeloader.pipeline.orchestrator import Preflight
-from freeloader.blocks.models import RunnerType
+from freeloader.pipeline.blocks.models import RunnerType
 from freeloader.projects.models import ProjectManifest
 from freeloader.pipeline.runners.generator import GeneratorRunner
 from freeloader.pipeline.runners.terraform.resource import TerraformResource
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.shared.paths import project_resource_dir
 
 

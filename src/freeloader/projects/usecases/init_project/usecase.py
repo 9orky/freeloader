@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.projects.discovery import ProjectDiscovery
 from freeloader.projects.models import BlockRef, ProjectInfo, ProjectManifest
 from freeloader.projects.tech import detect_stack

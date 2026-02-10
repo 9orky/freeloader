@@ -6,7 +6,7 @@ from freeloader.shared.errors import ConfigurationError
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from freeloader.blocks.registry import BlockRegistry
+    from freeloader.pipeline.blocks.registry import BlockRegistry
     from freeloader.credentials.vault import SecretVault
 
 

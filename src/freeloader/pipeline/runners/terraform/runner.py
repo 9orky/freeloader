@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from freeloader.blocks.registry import BlockRegistry
+from freeloader.pipeline.blocks.registry import BlockRegistry
 from freeloader.credentials.vault import SecretVault
 from freeloader.pipeline.context import ExecutionContext
 from freeloader.pipeline.dag import ResolvedBlock

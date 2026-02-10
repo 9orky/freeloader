@@ -6,7 +6,7 @@ from freeloader.pipeline.context import ExecutionContext
 from freeloader.pipeline.dag import DAGResolver, ResolvedBlock
 from freeloader.pipeline.orchestrator import Orchestrator
 from freeloader.pipeline.progress import ProgressTracker
-from freeloader.blocks.models import RunnerType
+from freeloader.pipeline.blocks.models import RunnerType
 from freeloader.projects.models import BlockRef, ProjectInfo, ProjectManifest
 from freeloader.pipeline.runners import RunnerRegistry
 from freeloader.pipeline.runners.base import BaseRunner
