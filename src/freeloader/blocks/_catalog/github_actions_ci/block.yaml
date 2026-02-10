@@ -1,0 +1,32 @@
+block:
+  runner: generator
+  layer: build
+
+provides: {}
+
+requires:
+  source.repo_name:
+    description: Repository name for CI workflow
+  registry.host:
+    description: Container registry host
+  registry.image_path:
+    description: Full image path for CI builds
+  deploy.webhook_url:
+    optional: true
+    description: Webhook URL to trigger after deploy
+
+config:
+  ci_provider:
+    type: string
+    default: github
+  test_command:
+    type: string
+    default: "npm test"
+    description: Set to "skip" to omit the test job
+  node_version:
+    type: string
+    default: "22"
+  build_platforms:
+    type: string
+    default: "linux/amd64"
+    description: Comma-separated list of docker build platforms

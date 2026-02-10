@@ -14,15 +14,12 @@ from freeloader.credentials.usecases.providers import ProviderUseCases
 from freeloader.credentials.usecases.secrets import SecretUseCases
 from freeloader.projects.usecases.status import StatusUseCases
 from freeloader.shared.paths import bundled_blocks_dir
-from freeloader.shared.yaml_io import load_yaml_model
 
 
 def _load_contracts() -> dict[str, BlockContract]:
-    return {
-        c.block.name: c
-        for p in sorted(bundled_blocks_dir().glob("*/block.yaml"))
-        for c in [load_yaml_model(p, BlockContract)]
-    }
+    registry = BlockRegistry(bundled_dir=bundled_blocks_dir())
+    registry.reload()
+    return {c.block.name: c for c in registry.list_blocks()}
 
 
 CONTRACTS = _load_contracts()
@@ -160,7 +157,7 @@ def sample_manifest() -> ProjectManifest:
     return ProjectManifest(
         project=ProjectInfo(name="my-app"),
         blocks=[
-            BlockRef(use="github-repo", config={"name": "my-app"}),
-            BlockRef(use="gitlab-registry", config={"name": "my-app"}),
+            BlockRef(use="github_repo", config={"name": "my-app"}),
+            BlockRef(use="gitlab_registry", config={"name": "my-app"}),
         ],
     )

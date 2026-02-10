@@ -7,7 +7,7 @@ from freeloader.projects.models import ProjectManifest
 from freeloader.projects.policies import validate_manifest_exists
 from freeloader.factory import Factory
 from freeloader.pipeline.usecases.generate import GenerateUseCases
-from freeloader.shared.console import confirm, info, print_panel, print_table, spinner, success
+from freeloader.shared.console import confirm, console, info, print_panel, print_table, spinner, success
 from freeloader.shared.errors import handle_errors
 from freeloader.shared.yaml_io import load_yaml_model
 
@@ -45,8 +45,8 @@ def plan(
         print_table(f"Execution Plan: {result.project_name}", [
                     "Block", "Layer", "Runner", "Depends On"], rows)
 
-        for ro in result.runner_outputs:
-            print_panel(f"Plan: {ro.runner}", ro.output, style="yellow")
+        for po in result.plan_outputs:
+            print_panel(f"Plan: {po.block_id}", po.output, style="yellow")
     else:
         with spinner("Resolving DAG..."):
             result = uc.plan(manifest)
@@ -59,7 +59,11 @@ def plan(
 
 @pipeline_app.command(help="Provision all blocks")
 @handle_errors
-def up(yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation")) -> None:
+def up(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Stream terraform output"),
+) -> None:
     manifest, _ = _require_manifest()
     passphrase = typer.prompt("Vault passphrase", hide_input=True)
     factory = Factory(passphrase)
@@ -73,17 +77,30 @@ def up(yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"))
     print_table(f"Execution Plan: {plan_result.project_name}", [
                 "Block", "Layer", "Runner", "Depends On"], rows)
 
-    for ro in plan_result.runner_outputs:
-        print_panel(f"Plan: {ro.runner}", ro.output, style="yellow")
+    for po in plan_result.plan_outputs:
+        print_panel(f"Plan: {po.block_id}", po.output, style="yellow")
 
     if not yes and not confirm("Proceed with apply?"):
         raise typer.Abort()
 
-    with spinner("Applying..."):
-        result = uc.apply(manifest)
+    if verbose:
+        from freeloader.shared import subprocess as sp
+        sp.STREAM_OUTPUT = True
 
-    for block_id, block_outputs in result.outputs.items():
-        success(f"{block_id}: {len(block_outputs)} outputs")
+    def _on_plan(block_id: str, output: str) -> None:
+        info(f"[plan] {block_id}")
+        if verbose:
+            console.print(output)
+
+    def _on_apply(block_id: str, outputs: dict) -> None:
+        success(f"{block_id}: {len(outputs)} outputs")
+
+    def _on_skip(block_id: str) -> None:
+        info(f"[skip] {block_id} (already applied)")
+
+    result = uc.apply(
+        manifest, on_plan=_on_plan, on_apply=_on_apply, on_skip=_on_skip)
+
     success(f"Project '{result.project_name}' is up")
 
 

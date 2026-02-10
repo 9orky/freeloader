@@ -18,8 +18,8 @@ class TestGetStatus:
             project_name="test-project",
             blocks=[
                 BlockState(
-                    block_name="github-repo",
-                    block_use="github-repo",
+                    block_name="github_repo",
+                    block_use="github_repo",
                     status=BlockStatus.created,
                     outputs={"source.repo_name": "org/repo"},
                     last_applied=datetime(2026, 1, 1, tzinfo=timezone.utc),
@@ -33,7 +33,7 @@ class TestGetStatus:
         result = uc.get()
 
         assert len(result.blocks) == 1
-        assert result.blocks[0].block_name == "github-repo"
+        assert result.blocks[0].block_name == "github_repo"
         assert result.blocks[0].status == "created"
         assert result.blocks[0].output_count == 1
         assert result.last_up != ""

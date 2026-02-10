@@ -41,13 +41,15 @@ class ConfigField(BaseModel):
 
 
 class BlockMeta(BaseModel):
-    name: str
+    name: str = ""
     description: str = ""
     runner: RunnerType
     layer: Layer
     version: str = "0.1.0"
     provider: str | None = None
     required_secrets: list[str] = []
+    default: bool = True
+    timeout_seconds: int | None = None
 
 
 class BlockContract(BaseModel):
@@ -55,3 +57,11 @@ class BlockContract(BaseModel):
     provides: dict[str, PortSpec] = {}
     requires: dict[str, PortSpec] = {}
     config: dict[str, ConfigField] = {}
+
+    def map_outputs(self, raw: dict[str, object]) -> dict[str, object]:
+        outputs: dict[str, object] = {}
+        for port_key in self.provides:
+            tf_name = port_key.split(".")[-1]
+            if tf_name in raw:
+                outputs[port_key] = raw[tf_name]
+        return outputs

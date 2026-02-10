@@ -41,7 +41,7 @@ class TestInitProject:
         assert "uv" in result.detected_stack
 
     def test_only_includes_available_blocks(self, tmp_path: Path, block_dir: Path) -> None:
-        limited = {"github-repo": CONTRACTS["github-repo"]}
+        limited = {"github_repo": CONTRACTS["github_repo"]}
         registry = InMemoryBlockRegistry(limited, block_dir)
         uc = InitProjectUseCases(registry)
         result = uc.init(tmp_path, "limited")

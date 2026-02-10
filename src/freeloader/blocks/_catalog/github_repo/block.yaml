@@ -1,0 +1,28 @@
+block:
+  runner: terraform
+  layer: source
+  provider: github
+  required_secrets:
+    - GITHUB_TOKEN
+
+provides:
+  source.repo_name:
+    type: string
+  source.clone_url:
+    type: string
+
+requires:
+  registry.host:
+    optional: true
+  registry.token:
+    optional: true
+    usage: github_secret
+  registry.user:
+    optional: true
+    usage: github_secret
+  registry.image_path:
+    optional: true
+    usage: github_secret
+  deploy.webhook_url:
+    optional: true
+    usage: github_secret

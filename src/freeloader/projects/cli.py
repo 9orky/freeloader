@@ -62,7 +62,7 @@ def status(
             ("Secrets vault", result.paths.secrets_path),
             ("Hosts inventory", result.paths.hosts_path),
             ("Project state", result.paths.project_state_dir),
-            ("Terraform dir", result.paths.project_tf_dir),
+            ("Resource dir", result.paths.project_resource_dir),
             ("User blocks", result.paths.user_blocks_dir),
             ("Bundled blocks", result.paths.bundled_blocks_dir),
         ]

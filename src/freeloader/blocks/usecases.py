@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from freeloader.blocks.policies import filter_by_layer
 from freeloader.blocks.registry import BlockRegistry
 
 
@@ -22,7 +23,7 @@ class BlockUseCases:
         self._registry = registry
 
     def list(self, layer: str | None = None) -> ListBlocksResult:
-        contracts = self._registry.list_blocks(layer)
+        contracts = filter_by_layer(self._registry.list_blocks(), layer)
         blocks = [
             BlockInfo(
                 name=c.block.name,

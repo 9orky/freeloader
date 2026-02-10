@@ -15,8 +15,12 @@ def project_state_dir(project_name: str) -> Path:
     return FREELOADER_HOME / "projects" / project_name
 
 
-def project_tf_dir(project_name: str) -> Path:
-    return project_state_dir(project_name) / "tf"
+def project_resource_dir(project_name: str) -> Path:
+    return project_state_dir(project_name) / "resources"
+
+
+def project_progress_path(project_name: str) -> Path:
+    return project_state_dir(project_name) / "progress.json"
 
 
 def blocks_dir() -> Path:

@@ -1,4 +1,4 @@
-PROJECT_DIR := freeloader
+PROJECT_DIR := .
 SRC_DIR     := $(PROJECT_DIR)/src
 TEST_DIR    := $(PROJECT_DIR)/tests
 

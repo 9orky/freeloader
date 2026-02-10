@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from freeloader.projects.state import StateManager
-from freeloader.shared.paths import FREELOADER_HOME, project_state_dir, project_tf_dir, blocks_dir, bundled_blocks_dir, config_path, secrets_path, hosts_path
+from freeloader.shared.paths import FREELOADER_HOME, project_state_dir, project_resource_dir, blocks_dir, bundled_blocks_dir, config_path, secrets_path, hosts_path
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ class PathsInfo:
     secrets_path: str
     hosts_path: str
     project_state_dir: str
-    project_tf_dir: str
+    project_resource_dir: str
     user_blocks_dir: str
     bundled_blocks_dir: str
 
@@ -62,7 +62,8 @@ class StatusUseCases:
                 secrets_path=str(secrets_path()),
                 hosts_path=str(hosts_path()),
                 project_state_dir=str(project_state_dir(state.project_name)),
-                project_tf_dir=str(project_tf_dir(state.project_name)),
+                project_resource_dir=str(
+                    project_resource_dir(state.project_name)),
                 user_blocks_dir=str(blocks_dir()),
                 bundled_blocks_dir=str(bundled_blocks_dir()),
             )

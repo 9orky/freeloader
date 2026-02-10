@@ -1,0 +1,20 @@
+block:
+  runner: terraform
+  layer: registry
+  provider: gitlab
+  required_secrets:
+    - GITLAB_TOKEN
+
+provides:
+  registry.host:
+    type: string
+  registry.token:
+    type: string
+  registry.user:
+    type: string
+  registry.image_path:
+    type: string
+  registry.project_id:
+    type: string
+
+requires: {}

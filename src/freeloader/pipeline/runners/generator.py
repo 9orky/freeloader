@@ -18,88 +18,61 @@ class GeneratorRunner(BaseRunner):
     def runner_name(self) -> str:
         return "generator"
 
-    def check_feasibility(self, blocks: list[ResolvedBlock]) -> list[FeasibilityIssue]:
-        issues: list[FeasibilityIssue] = []
-        name = self.runner_name()
-
-        if not self._output_dir.exists():
+    def check_feasibility(self, block: ResolvedBlock) -> list[FeasibilityIssue]:
+        block_dir, issues = self._check_block_dir(self._block_dirs, block)
+        if issues:
+            return issues
+        templates_dir = block_dir / "templates"
+        if not templates_dir.exists():
             issues.append(FeasibilityIssue(
-                runner=name, check="output directory",
-                detail=f"Output directory does not exist: {self._output_dir}",
+                runner=self.runner_name(), check=f"templates for '{block.contract.block.name}'",
+                detail=f"Templates directory missing: {templates_dir}",
             ))
-        elif not os.access(self._output_dir, os.W_OK):
-            issues.append(FeasibilityIssue(
-                runner=name, check="output directory writable",
-                detail=f"Cannot write to output directory: {self._output_dir}",
-            ))
-
-        for block in blocks:
-            block_name = block.contract.block.name
-            block_dir = self._block_dirs.get(block_name)
-            if not block_dir:
-                issues.append(FeasibilityIssue(
-                    runner=name, check=f"block dir for '{block_name}'",
-                    detail=f"No block directory registered for '{block_name}'",
-                ))
-                continue
-            templates_dir = block_dir / "templates"
-            if not templates_dir.exists():
-                issues.append(FeasibilityIssue(
-                    runner=name, check=f"templates for '{block_name}'",
-                    detail=f"Templates directory missing: {templates_dir}",
-                ))
-
         return issues
 
-    def plan(self, blocks: list[ResolvedBlock], ctx: ExecutionContext) -> str:
+    def plan_block(self, block: ResolvedBlock, ctx: ExecutionContext) -> str:
+        templates_dir = self._get_templates_dir(block)
+        if not templates_dir:
+            return "  (no templates)"
         lines: list[str] = []
-        for block in blocks:
-            templates_dir = self._get_templates_dir(block)
-            if not templates_dir:
-                continue
-            for tpl_path in self._select_templates(block, templates_dir):
-                target = self._target_path(tpl_path)
-                status = "overwrite" if target.exists() else "create"
-                lines.append(
-                    f"  [{status}] {target.relative_to(self._output_dir)}")
+        for tpl_path in self._select_templates(block, templates_dir):
+            target = self._target_path(tpl_path)
+            status = "overwrite" if target.exists() else "create"
+            lines.append(
+                f"  [{status}] {target.relative_to(self._output_dir)}")
         return "\n".join(lines) if lines else "  (no files to generate)"
 
-    def apply(self, blocks: list[ResolvedBlock], ctx: ExecutionContext) -> dict[str, dict[str, Any]]:
-        all_outputs: dict[str, dict[str, Any]] = {}
-        for block in blocks:
-            templates_dir = self._get_templates_dir(block)
-            if not templates_dir:
-                all_outputs[block.ref.resolved_id] = {}
-                continue
+    def apply_block(self, block: ResolvedBlock, ctx: ExecutionContext) -> dict[str, Any]:
+        templates_dir = self._get_templates_dir(block)
+        if not templates_dir:
+            return {}
 
-            template_context = self._build_context(block, ctx)
-            env = jinja2.Environment(
-                loader=jinja2.FileSystemLoader(str(templates_dir)),
-                keep_trailing_newline=True,
-                undefined=jinja2.StrictUndefined,
-            )
+        template_context = self._build_context(block, ctx)
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(str(templates_dir)),
+            keep_trailing_newline=True,
+            undefined=jinja2.StrictUndefined,
+        )
 
-            generated: list[str] = []
-            for tpl_path in self._select_templates(block, templates_dir):
-                template = env.get_template(tpl_path.name)
-                rendered = template.render(**template_context)
-                target = self._target_path(tpl_path)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(rendered)
-                generated.append(str(target.relative_to(self._output_dir)))
+        generated: list[str] = []
+        for tpl_path in self._select_templates(block, templates_dir):
+            template = env.get_template(tpl_path.name)
+            rendered = template.render(**template_context)
+            target = self._target_path(tpl_path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(rendered)
+            generated.append(str(target.relative_to(self._output_dir)))
 
-            all_outputs[block.ref.resolved_id] = {"generated_files": generated}
-        return all_outputs
+        return {"generated_files": generated}
 
-    def destroy(self, blocks: list[ResolvedBlock], ctx: ExecutionContext) -> None:
-        for block in blocks:
-            templates_dir = self._get_templates_dir(block)
-            if not templates_dir:
-                continue
-            for tpl_path in self._select_templates(block, templates_dir):
-                target = self._target_path(tpl_path)
-                if target.exists():
-                    target.unlink()
+    def destroy_block(self, block: ResolvedBlock, ctx: ExecutionContext) -> None:
+        templates_dir = self._get_templates_dir(block)
+        if not templates_dir:
+            return
+        for tpl_path in self._select_templates(block, templates_dir):
+            target = self._target_path(tpl_path)
+            if target.exists():
+                target.unlink()
 
     def _select_templates(
         self, block: ResolvedBlock, templates_dir: Path,
@@ -124,7 +97,7 @@ class GeneratorRunner(BaseRunner):
     def _resolve_dockerfile_template(self, block: ResolvedBlock) -> str:
         config = block.ref.config
         tpl = config.get("template", "auto")
-        serve = config.get("serve_with", "nginx")
+        serve = config.get("serve_with", "") or "nginx"
 
         if tpl != "auto":
             return tpl

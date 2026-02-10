@@ -6,14 +6,14 @@ DOCKERFILE_TEMPLATE = "node-npm-nginx"
 
 
 @tech_detector
-class NodeDetector(TechDetector):
+class NodeNpm(TechDetector):
     @property
     def name(self) -> str:
-        return "node"
+        return "node.npm"
 
     @property
     def patterns(self) -> list[str]:
-        return ["package.json", "yarn.lock", "pnpm-lock.yaml"]
+        return ["package.json", "package-lock.json"]
 
     def analyze(self, matched: dict[str, list[Path]]) -> TechStack | None:
         pkg_mgr = "npm"

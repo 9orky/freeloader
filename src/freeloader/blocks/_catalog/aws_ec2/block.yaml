@@ -1,0 +1,19 @@
+block:
+  runner: terraform
+  layer: infra
+  provider: aws
+  required_secrets:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+
+provides:
+  server.ip_address:
+    type: string
+  server.instance_id:
+    type: string
+  server.ssh_user:
+    type: string
+  server.public_dns:
+    type: string
+
+requires: {}

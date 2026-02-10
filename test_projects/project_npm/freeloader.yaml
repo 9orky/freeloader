@@ -1,0 +1,27 @@
+project:
+  name: project_npm
+  description: ''
+  source_dir: .
+blocks:
+- use: github_repo
+  config:
+    name: project_npm
+    org: 'szpak-dev'
+    description: 'Test npm project'
+    visibility: private
+- use: gitlab_registry
+  config:
+    name: project_npm
+    description: 'Registry for project_npm'
+    visibility: private
+- use: dockerfile
+  config:
+    template: auto
+    node_version: '22'
+    serve_with: ''
+- use: github_actions_ci
+  config:
+    ci_provider: github
+    test_command: npm test
+    node_version: '22'
+    build_platforms: linux/amd64
