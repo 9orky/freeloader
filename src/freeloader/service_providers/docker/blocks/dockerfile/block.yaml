@@ -1,0 +1,21 @@
+block:
+  runner: generator
+  layer: build
+
+provides: {}
+
+requires: {}
+
+config:
+  language:
+    type: string
+    required: true
+  language_version:
+    type: string
+    default: "22"
+  package_manager:
+    type: string
+    default: ""
+  serve_with:
+    type: string
+    default: ""
