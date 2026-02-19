@@ -1,16 +1,10 @@
-from freeloader.shared import Freeloader
-
 from .. import usecases
-from ..storage import Storage
-
-
-def _load_storage() -> Storage:
-    freeloader = Freeloader()
-    return Storage(freeloader.secrets_folder, freeloader.session_folder)
+from ..usecases._storage import load_storage
 
 
 def read_secrets(namespace: str, secret_names: list[str]) -> dict[str, str]:
-    pass
+    storage = load_storage()
+    return {name: storage.get(name, namespace).value for name in secret_names}
 
 
 def write_secret(namespace: str, secret_name: str, secret_value: str) -> None:
@@ -18,4 +12,5 @@ def write_secret(namespace: str, secret_name: str, secret_value: str) -> None:
 
 
 def has_secrets(namespace: str, secret_names: list[str]) -> bool:
-    storage = _load_storage()
+    storage = load_storage()
+    return all(storage.has(name, namespace) for name in secret_names)

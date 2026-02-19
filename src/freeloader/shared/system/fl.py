@@ -41,8 +41,8 @@ class Freeloader:
     def is_installed(self) -> bool:
         return all([
             self._projects_folder.exists(), 
-            self._secrets_folder.exists(), 
-            self._session_folder.exists()
+            # self._secrets_folder.exists(), 
+            # self._session_folder.exists()
         ])
     
     def must_be_installed(self):

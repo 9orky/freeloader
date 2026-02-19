@@ -12,22 +12,22 @@ def secrets_group():
 
 
 @secrets_group.command()
-@click.option("--namespace", "-n", required=False, help="Namespace of the secret")
+@click.option("--namespace", "-n", required=False)
 @handle_cli_error
 def ls(namespace: str | None):
     usecases.list_all(namespace)
 
 
 @secrets_group.command()
-@click.option("--namespace", "-n", required=False, help="Namespace of the secret")
+@click.option("--namespace", "-n", required=False)
 @handle_cli_error
 def reveal(namespace: str | None):
     usecases.reveal_secrets(namespace)
 
 
 @secrets_group.command()
-@click.argument("key", required=True, help="Name of the secret")
-@click.option("--namespace", "-n", required=False, help="Namespace of the secret")
+@click.argument("key", required=True)
+@click.option("--namespace", "-n", required=False)
 @handle_cli_error
 def add(key: str, namespace: str | None):
     value = click.prompt(f"Value for secret '{key}'", hide_input=True)
@@ -35,8 +35,8 @@ def add(key: str, namespace: str | None):
 
 
 @secrets_group.command()
-@click.argument("key", required=True, help="Name of the secret")
-@click.option("--namespace", "-n", required=False, help="Namespace of the secret")
+@click.argument("key", required=True)
+@click.option("--namespace", "-n", required=False)
 @handle_cli_error
 def remove(key: str, namespace: str | None):
     usecases.remove_secret(key, namespace)
