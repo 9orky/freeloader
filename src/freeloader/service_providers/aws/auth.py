@@ -3,7 +3,7 @@ import hmac
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 from ..base import ServiceProvider, Credentials
-from freeloader.secret.checkers import CredentialStatus, register
+from freeloader.secrets.checkers import CredentialStatus, register
 import httpx
 
 

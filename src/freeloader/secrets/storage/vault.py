@@ -11,7 +11,7 @@ class SecretVault:
     def __init__(self, path: Path, passphrase: str) -> None:
         self._path = path
         self._fernet = self._derive_fernet(passphrase)
-        self._data: dict[str, str] = self._load()
+        self._data: dict[str, dict[str, str]] = self._load()
 
     def _derive_fernet(self, passphrase: str) -> Fernet:
         salt = b"freeloader-vault-salt-v1"
@@ -20,7 +20,7 @@ class SecretVault:
         key = base64.urlsafe_b64encode(kdf.derive(passphrase.encode()))
         return Fernet(key)
 
-    def _load(self) -> dict[str, str]:
+    def _load(self) -> dict[str, dict[str, str]]:
         if not self._path.exists():
             return {}
         encrypted = self._path.read_bytes()
@@ -33,18 +33,18 @@ class SecretVault:
         self._path.write_bytes(self._fernet.encrypt(plaintext))
 
     def get(self, key: str, namespace: str) -> str:
-        return self._data[key]
+        return self._data[namespace][key]
 
     def set(self, key: str, value: str, namespace: str) -> None:
-        self._data[key] = value
+        self._data.setdefault(namespace, {})[key] = value
         self._save()
 
     def list(self, namespace: str) -> list[str]:
-        return list(self._data.keys())
+        return list(self._data.get(namespace, {}).keys())
 
     def delete(self, key: str, namespace: str) -> None:
-        del self._data[key]
+        del self._data[namespace][key]
         self._save()
 
     def has(self, key: str, namespace: str) -> bool:
-        return key in self._data
+        return namespace in self._data and key in self._data[namespace]

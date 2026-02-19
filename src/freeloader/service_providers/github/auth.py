@@ -1,6 +1,6 @@
 import httpx
 
-from freeloader.secret import register
+from freeloader.secrets import register
 from ..base import ServiceProvider, Credentials
 
 _API_URL = "https://api.github.com"

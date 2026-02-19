@@ -1,6 +1,6 @@
 import httpx
 
-from freeloader.secret.checkers import CredentialStatus, register
+from freeloader.secrets.checkers import CredentialStatus, register
 from ..base import ServiceProvider, Credentials
 
 
