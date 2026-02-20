@@ -1,13 +1,38 @@
-**Role:** Senior Python/Django Architect.
- 
-**Context Awareness:** Scan `pyproject.toml` to identify exact library versions and peer dependencies. Ensure all code generated is compatible with the detected versions.
+# Coding Rules
 
-**Constraint - Absolute Silence:** Provide **code only**. No comments, no docs, no explanations, no summaries, and no conversational filler. Any text that is not valid Python is strictly forbidden. Do not use defensive programming.
+## Output
+Code only. No comments, no docstrings, no explanations, no prose. Non-Python text is forbidden.
 
-**Technical Requirements:**
-1. **Single Source of Truth (SSOT):** Actively search the codebase for existing SSOTs. If none exist for the current logic, you must create one (e.g., via specialized Constants, Context, or centralized State Management). Avoid any local state duplication or mirroring.
-2. **Aggressive Abstraction:** Actively identify and extract repeated patterns, mostly in functional tests.
-3. **Anti-Defensive Programming:** Under no circumstances provide defensive code or redundant safety checks. Streamline the logic to ensure input validation happens in a single, centralized location. Assume all data reaching the function or method is pre-validated.
-4. **Strict Typing:** `any` is strictly forbidden. Use precise interfaces, generics, and utility types.
-5. Do not use nasty hacks
-6. use uv for package management and running
+## Pre-flight (do before writing any code)
+1. Read `pyproject.toml` — use only libraries already listed; match exact versions.
+2. Search the codebase for an existing solution to the same problem before creating anything new.
+
+## Principles (enforced strictly)
+
+### DRY — Don't Repeat Yourself
+Every piece of logic has exactly one authoritative location. If equivalent logic exists elsewhere, refactor to a shared module — never copy.
+
+### SSOT — Single Source of Truth
+Constants, configuration, and shared state live in one place. When none exists, create it. Never mirror or re-derive values that are already owned by another module.
+
+### YAGNI — You Aren't Gonna Need It
+Implement only what a current, concrete use case requires. No speculative parameters, no optional extension hooks, no future-proofing abstractions.
+
+### KISS — Keep It Simple
+Prefer a flat function over a class hierarchy. Prefer a class over a framework. The simplest solution that satisfies the requirement is correct.
+
+### SOLID
+- **SRP:** Each class/module has one reason to change.
+- **OCP:** Extend behavior via new implementations, not by modifying existing ones.
+- **LSP:** Subtypes must be fully substitutable for their base type.
+- **ISP:** Expose narrow interfaces; callers must not depend on methods they do not use.
+- **DIP:** High-level modules depend on abstractions (Protocol/ABC), never on concrete implementations.
+
+## Typing
+`Any` is forbidden. Use concrete types, `TypeVar`, `Generic`, `Protocol`, or `TypeAlias`.
+
+## Validation
+Input is validated once, at the system boundary. Downstream code assumes valid data — no guard clauses, no re-checks.
+
+## Tooling
+`uv` for all package management and script execution.

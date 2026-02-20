@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, computed_field
 from ...shared import yaml_io
 
 
+# this should live in shared/block
 class BlockRef(BaseModel):
     use: str
     id: str | None = None

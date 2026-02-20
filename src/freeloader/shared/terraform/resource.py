@@ -29,15 +29,15 @@ class TerraformResource:
         self._create_variables_file(variables)
         self._runner.plan(PLAN_FILE)
 
-    def create(self, *, timeout: int | None = None) -> None:
+    def apply(self, *, timeout: int | None = None) -> None:
         self._must_be_prepared()
         self._runner.apply(PLAN_FILE, timeout=timeout)
 
-    def read(self) -> Union[dict, list]:
+    def output(self) -> Union[dict, list]:
         self._must_be_created()
         return self._runner.output()
 
-    def remove(self, *, timeout: int | None = None) -> None:
+    def destroy(self, *, timeout: int | None = None) -> None:
         self._must_be_created()
         self._runner.destroy(timeout=timeout)
 
@@ -48,11 +48,15 @@ class TerraformResource:
     def _must_be_prepared(self) -> None:
         main_file = self._root / MAIN_FILE
         plan_file = self._root / PLAN_FILE
-        assert main_file.is_file(), f"Terraform main file not found: {main_file}"
-        assert plan_file.is_file(), f"Terraform plan file not found: {plan_file}"
+        assert main_file.is_file(
+        ), f"Terraform main file not found: {main_file}"
+        assert plan_file.is_file(
+        ), f"Terraform plan file not found: {plan_file}"
 
     def _must_be_created(self) -> None:
         main_file = self._root / MAIN_FILE
         plan_file = self._root / PLAN_FILE
-        assert main_file.is_file(), f"Terraform main file not found: {main_file}"
-        assert not plan_file.is_file(), f"Terraform plan file should be removed after apply: {plan_file}"
+        assert main_file.is_file(
+        ), f"Terraform main file not found: {main_file}"
+        assert not plan_file.is_file(
+        ), f"Terraform plan file should be removed after apply: {plan_file}"
