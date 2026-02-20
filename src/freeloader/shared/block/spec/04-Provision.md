@@ -103,19 +103,20 @@ blocks/github/repo/block.yml      →  BlockContract
 2. For each block, matches each entry in `requires` against `provides_map`.
 3. Raises `MissingRequirement` if a required (non-optional) port has no provider.
 4. Raises `AmbiguousProvider` if a port is provided by more than one block.
-5. Records `block_id → provider_id` wiring for each resolved port.
-6. Runs Kahn's algorithm (topological sort) on the dependency graph.
-7. Returns blocks in execution order, each carrying its resolved input wiring.
+5. Raises `DuplicateBlockId` if two block entries resolve to the same `resolved_id`.
+6. Records `block_id → provider_id` wiring for each resolved port.
+7. Runs Kahn's algorithm (topological sort) on the dependency graph, using `(layer_priority, original_index)` as a min-heap tiebreaker.
+8. Returns blocks in execution order, each carrying its resolved input wiring.
 
 ### Step 4: Execute in Order
 
 For each `ResolvedBlock`:
 
-1. **Resolve secrets**: fetch secret values from the vault for fields listed under `config.secrets`.
+1. **Resolve secrets**: fetch all secret field values in one call to `secrets_reader(namespace=block.ref.use, secret_names=[...])`. `secrets_reader` is wired to `secrets.ports.interface.read_secrets` at construction time — `BlockRunner` never imports from `freeloader.secrets` directly.
 2. **Resolve input ports**: look up the provider block's outputs in `ExecutionContext`.
 3. **Build tfvars**: merge `block_ref.config` + resolved secrets + resolved port values.
-4. **Run Terraform**: call `Terraform(work_dir).prepare(template, tfvars)` then `Terraform.apply()` — the `Terraform` facade from `freeloader.shared.terraform` is the only permitted abstraction for all Terraform operations. Never call `TerraformRunner`, `TerraformFile`, or `TerraformResource` directly.
-5. **Capture outputs**: call `Terraform(work_dir).output()`, store result in `ExecutionContext`.
+4. **Run Terraform**: call `terraform_factory(work_dir).prepare(template, tfvars)` then `.apply()`. `terraform_factory` is wired to `freeloader.shared.terraform.Terraform` at construction time — `BlockRunner` never imports `Terraform` directly. Never call `TerraformRunner`, `TerraformFile`, or `TerraformResource` from their internal modules.
+5. **Capture outputs**: call `.output()` on the same instance; unwrap the terraform JSON envelope (`{"value": ..., "type": ...}` → bare value) via `BlockContract.map_outputs`. Store result in `ExecutionContext`.
 
 ### Step 5: Done
 
@@ -220,10 +221,9 @@ Steps 1–5 have no inter-block dependencies. The resolver may execute them in a
 ExecutionContext.get_output("gitlab/registry", "image_path")
   → "registry.gitlab.com/acme-corp/acme-api"
 
-Vault.get("coolify_token")   → "eyJhbGci..."
-Vault.get("coolify_endpoint") → "https://coolify.acme.com"
-Vault.get("server_uuid")     → "abc-123"
-Vault.get("destination_uuid") → "def-456"
+secrets_reader("coolify/app", ["coolify_token", "coolify_endpoint", "server_uuid", "destination_uuid"])
+  → { coolify_token: "eyJhbGci...", coolify_endpoint: "https://coolify.acme.com",
+      server_uuid: "abc-123", destination_uuid: "def-456" }
 
 tfvars = {
   name:                 "acme-api",
@@ -260,7 +260,7 @@ tfvars = {
   registry_user:      "oauth2",
   registry_token:     "<sensitive>",
   registry_image_path:"registry.gitlab.com/acme-corp/acme-api",
-  github_token:       "<from vault>",
+  github_token:       "<from secrets_reader>",
 }
 
 terraform apply → creates repo, injects 4 GitHub Actions secrets, enables branch protection

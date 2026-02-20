@@ -1,11 +1,10 @@
 from pathlib import Path
 from typing import Any
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, computed_field
 
 from ...shared import yaml_io
 
 
-# this should live in shared/block
 class BlockRef(BaseModel):
     use: str
     id: str | None = None
@@ -15,11 +14,12 @@ class BlockRef(BaseModel):
     @property
     def resolved_id(self) -> str:
         return self.id or self.use
-    
+
 
 class ManifestMeta(BaseModel):
     name: str
     description: str = ""
+    path: str | None = None
 
 
 class ProjectManifest(BaseModel):
@@ -29,7 +29,8 @@ class ProjectManifest(BaseModel):
 
 def load_manifest(path: Path) -> ProjectManifest:
     manifest_path = path / "freeloader.yaml"
-    assert manifest_path.is_file(), f"Project manifest {manifest_path} does not exist"
+    assert manifest_path.is_file(
+    ), f"Project manifest {manifest_path} does not exist"
 
     manifest_dict = yaml_io.load_yaml(manifest_path)
     return ProjectManifest(**manifest_dict)

@@ -21,7 +21,7 @@ uninstall:
 # ── Test ─────────────────────────────────────────────────────────────────────
 
 test:
-	cd $(PROJECT_DIR) && uv run pytest -q
+	cd $(PROJECT_DIR) && uv run pytest
 
 test-v:
 	cd $(PROJECT_DIR) && uv run pytest -v

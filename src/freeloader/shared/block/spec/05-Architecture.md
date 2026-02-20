@@ -66,9 +66,8 @@ class ConfigField(BaseModel):
 Defines the full block contract and the manifest config builder.
 
 ```python
-from pathlib import Path
 from typing import Any
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from .models import Layer, PortSpec, ConfigField
 
 
@@ -83,7 +82,12 @@ class BlockContract(BaseModel):
     requires: dict[str, PortSpec] = {}
     config: list[ConfigField] = []
 
-    def map_outputs(self, raw: dict[str, Any]) -> dict[str, Any]: ...
+    # model_validator flattens the YAML config dict {basic: [...], advanced: [...], secrets: [...]}
+    # into a flat list[ConfigField], stamping each entry with its group name.
+
+    def map_outputs(self, raw: dict[str, Any]) -> dict[str, Any]:
+        # Unwraps terraform JSON output envelope: {"value": ..., "type": ...} → bare value.
+        ...
 
     def config_fields(self, group: str) -> list[ConfigField]: ...
 
@@ -106,10 +110,14 @@ class ConfigBuilder:
 Resolves a flat list of block refs into a topologically sorted execution plan.
 
 ```python
-from collections import defaultdict, deque
+import heapq
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from .config import BlockContract
 from .models import LAYER_ORDER
+
+if TYPE_CHECKING:
+    from freeloader.project.metadata.manifest import BlockRef
 
 
 @dataclass(frozen=True)
@@ -123,6 +131,7 @@ class DAGError(Exception): ...
 class MissingRequirement(DAGError): ...
 class AmbiguousProvider(DAGError): ...
 class CircularDependency(DAGError): ...
+class DuplicateBlockId(DAGError): ...
 
 
 class DAGResolver:
@@ -142,7 +151,10 @@ class DAGResolver:
         self,
         block_refs: list["BlockRef"],
         adjacency: dict[str, set[str]],
-    ) -> dict[str, int]: ...
+        contracts: dict[str, BlockContract],
+    ) -> dict[str, int]:
+        # Uses a min-heap keyed on (layer_priority, original_index) as tiebreaker.
+        ...
 ```
 
 ---
@@ -200,12 +212,23 @@ Orchestrates Terraform execution for each resolved block in order.
 
 ```python
 from pathlib import Path
-from typing import Any
-from .config import BlockContract
+from typing import Any, Callable, Protocol, TypeAlias, runtime_checkable
 from .context import ExecutionContext
 from .dag import ResolvedBlock
-from freeloader.shared.terraform import Terraform
-from freeloader.secrets.storage.vault import Vault
+
+
+@runtime_checkable
+class TerraformProtocol(Protocol):
+    def prepare(self, template: Path, variables: dict[str, str | list[str] | dict[str, str]]) -> None: ...
+    def apply(self, *, timeout: int | None = None) -> None: ...
+    def output(self) -> dict[str, object] | list[object]: ...
+    def destroy(self, *, timeout: int | None = None) -> None: ...
+
+
+# Callable[[namespace, secret_names], {name: value}] — matches secrets.ports.interface.read_secrets
+SecretsReader: TypeAlias = Callable[[str, list[str]], dict[str, str]]
+# Callable[[work_dir], TerraformProtocol] — wire in freeloader.shared.terraform.Terraform
+TerraformFactory: TypeAlias = Callable[[Path], TerraformProtocol]
 
 
 class BlockRunner:
@@ -213,7 +236,9 @@ class BlockRunner:
         self,
         work_dir: Path,
         blocks_root: Path,
-        vault: Vault,
+        secrets_reader: SecretsReader,
+        terraform_factory: TerraformFactory,
+        project_path: Path | None = None,
     ) -> None: ...
 
     def run_all(
@@ -281,7 +306,7 @@ def load_manifest(path: Path) -> ProjectManifest: ...
 Public API of the block package.
 
 ```python
-from .dag import DAGError, MissingRequirement, AmbiguousProvider, CircularDependency
+from .dag import DAGError, MissingRequirement, AmbiguousProvider, CircularDependency, DuplicateBlockId
 from .runner import BlockRunner
 
 __all__ = [
@@ -290,6 +315,7 @@ __all__ = [
     "MissingRequirement",
     "AmbiguousProvider",
     "CircularDependency",
+    "DuplicateBlockId",
 ]
 ```
 
@@ -314,11 +340,20 @@ The tfvars dict is built in memory and written as `terraform.tfvars.json` with m
 ### `project.path` and `target_folder`
 `project.path` in the manifest is the SSOT for the project's local directory. During `_build_tfvars`, if a block's contract declares a config field named `target_folder` and the user has not overridden it in `config`, the provisioner injects `project.path` automatically.
 
-### Terraform package — single abstraction
-`freeloader.shared.terraform` exposes exactly two symbols: `Terraform` and `TerraformVariable`. `Terraform` is the **only** entry point for all Terraform operations within the block system and project usecases. Direct use of `TerraformRunner`, `TerraformFile`, or `TerraformResource` from their internal modules is forbidden. `BlockRunner` constructs one `Terraform(work_dir)` instance per block and calls the full lifecycle through it:
+### Terraform — injected factory, not direct import
+`freeloader.shared.terraform` exposes exactly two symbols: `Terraform` and `TerraformVariable`. `Terraform` satisfies `TerraformProtocol` and is the **only** entry point for all Terraform operations. Direct use of `TerraformRunner`, `TerraformFile`, or `TerraformResource` from their internal modules is forbidden.
+
+`BlockRunner` receives a `TerraformFactory` (`Callable[[Path], TerraformProtocol]`) at construction time — it never imports `Terraform` directly. Callers wire in the concrete class:
 
 ```python
-tf = Terraform(self._block_work_dir(block.ref.resolved_id))
+from freeloader.shared.terraform import Terraform
+runner = BlockRunner(..., terraform_factory=Terraform)
+```
+
+Internally `BlockRunner` calls:
+
+```python
+tf = self._terraform_factory(self._block_work_dir(block.ref.resolved_id))
 tf.prepare(template_path, tfvars)   # copies main.tf, init, plan
 tf.apply()                          # apply
 outputs = tf.output()               # output -json
@@ -326,8 +361,18 @@ outputs = tf.output()               # output -json
 tf.destroy()                        # destroy
 ```
 
-Variable inspection of a template before provisioning (e.g., for validation tooling) is also done through the facade:
+Variable inspection (e.g., for validation tooling) is done outside `BlockRunner`, directly through the facade:
 
 ```python
 variables: list[TerraformVariable] = Terraform(work_dir).variables(template_path)
 ```
+
+### Secrets — inter-feature port, not direct vault access
+`BlockRunner` receives a `SecretsReader` (`Callable[[str, list[str]], dict[str, str]]`) at construction time. Callers wire in `secrets.ports.interface.read_secrets`:
+
+```python
+from freeloader.secrets.ports.interface import read_secrets
+runner = BlockRunner(..., secrets_reader=read_secrets)
+```
+
+`shared/block` imports nothing from `freeloader.secrets` — dependency inversion keeps the subpackage independent.
