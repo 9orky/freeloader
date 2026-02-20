@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from freeloader.hosts.models import HostEntry, HostInventory
-from freeloader.shared.yaml_io import load_yaml_model, save_yaml_model
+from freeloader.shared.io import load_yaml_model, save_yaml_model
 
 
 class HostStore:

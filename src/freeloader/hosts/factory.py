@@ -1,7 +1,7 @@
 from freeloader.hosts.scanner import SSHScanner
 from freeloader.hosts.store import HostStore
 from freeloader.hosts.usecases import HostUseCases
-from freeloader.shared.paths import hosts_path
+from freeloader.shared.runtime import hosts_path
 
 
 class HostsFactory:

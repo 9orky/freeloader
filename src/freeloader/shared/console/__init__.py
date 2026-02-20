@@ -1,0 +1,60 @@
+import functools
+
+import click
+import typer
+from rich.console import Console
+from rich.table import Table
+
+_console = Console()
+_err_console = Console(stderr=True)
+
+
+def info(message: str) -> None:
+    _console.print(message, style="dim")
+
+
+def success(message: str) -> None:
+    _console.print(f"✓ {message}", style="green")
+
+
+def warn(message: str) -> None:
+    _console.print(f"⚠ {message}", style="yellow")
+
+
+def error(message: str) -> None:
+    _err_console.print(f"✗ {message}", style="red")
+
+
+def print_table(title: str, headers: list[str], rows: list[list]) -> None:
+    table = Table(title=title, show_header=True, header_style="bold")
+    for header in headers:
+        table.add_column(header)
+    for row in rows:
+        table.add_row(*[str(cell) for cell in row])
+    _console.print(table)
+
+
+def handle_cli_error(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            click.secho(f"\nError: {str(e)}\n",
+                        fg="white", bg="red", bold=True, err=True)
+            raise SystemExit(1)
+
+    return wrapper
+
+
+def handle_errors(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            _err_console.print(
+                f"\nError: {str(e)}\n", style="bold white on red")
+            raise typer.Exit(1)
+
+    return wrapper

@@ -26,7 +26,6 @@ def save_yaml_model(path: Path, instance: BaseModel) -> None:
 
 
 def _computed_fields(instance: BaseModel) -> set[str]:
-    """Recursively collect computed field names so they are never persisted."""
     cls = type(instance)
     exclude: dict = {}
     for name in cls.model_computed_fields:

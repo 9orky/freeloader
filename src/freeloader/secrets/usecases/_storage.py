@@ -1,7 +1,7 @@
 import click
 
 from freeloader.secrets.storage import Storage, PasswordRequiredError
-from freeloader.shared.system.fl import Freeloader
+from freeloader.shared.runtime import Freeloader
 
 
 def load_storage() -> Storage:

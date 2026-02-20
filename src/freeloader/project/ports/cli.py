@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 import click
 
-from freeloader.shared import handle_cli_error
-from freeloader.shared.system import Freeloader
+from freeloader.shared.console import handle_cli_error
+from freeloader.shared.runtime import Freeloader
 
 from .. import usecases
 
@@ -20,7 +20,7 @@ def ls():
     if len(all_projects) == 0:
         click.secho("No projects registered yet.", fg="yellow", bold=True)
         return 0
-    
+
     click.echo("Registered projects:\n")
     for project in all_projects:
         click.secho(f"- {project['name']} ({project['path']})", fg="cyan")
@@ -31,7 +31,8 @@ def ls():
 def init():
     project_path = Path(os.getcwd())
     usecases.initialize_project(project_path.name, project_path)
-    click.secho(f"\nProject '{project_path.name}' initialized!\n", fg="green", bold=True)
+    click.secho(
+        f"\nProject '{project_path.name}' initialized!\n", fg="green", bold=True)
 
 
 @project_group.command()
@@ -46,4 +47,5 @@ def provision():
 def destroy():
     project_path = Path(os.getcwd())
     usecases.destroy_project(project_path)
-    click.secho(f"\nProject '{project_path.name}' destroyed successfully!\n", fg="red", bold=True)
+    click.secho(
+        f"\nProject '{project_path.name}' destroyed successfully!\n", fg="red", bold=True)

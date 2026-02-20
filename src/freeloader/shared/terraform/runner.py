@@ -1,7 +1,7 @@
+import json
 from pathlib import Path
+from subprocess import run, CalledProcessError
 from typing import Union
-
-from freeloader.shared.cmd import run_cli
 
 
 class TerraformRunner:
@@ -9,18 +9,27 @@ class TerraformRunner:
         self._root = root
 
     def init(self) -> None:
-        run_cli(["terraform", "init", "-input=false"], chdir=self._root)
+        self._run(["terraform", "init", "-input=false"])
 
     def plan(self, plan_file: str) -> str:
-        result = run_cli(["terraform", "plan", "-input=false", "-no-color", f"-out={plan_file}"], chdir=self._root)
-        return result.raw
+        return self._run(["terraform", "plan", "-input=false", "-no-color", f"-out={plan_file}"])
 
     def apply(self, plan_file: str, timeout: int | None = None) -> None:
-        run_cli(["terraform", "apply", "-input=false", plan_file], chdir=self._root)
+        self._run(["terraform", "apply", "-input=false", plan_file])
 
     def output(self) -> Union[dict, list]:
-        result = run_cli(["terraform", "output", "-json"], chdir=self._root)
-        return result.json
+        raw = self._run(["terraform", "output", "-json"])
+        return json.loads(raw) if raw.strip() else {}
 
     def destroy(self, timeout: int | None = None) -> None:
-        run_cli(["terraform", "destroy", "-auto-approve", "-input=false"], chdir=self._root)
+        self._run(["terraform", "destroy", "-auto-approve", "-input=false"])
+
+    def _run(self, command: list[str]) -> str:
+        try:
+            result = run(command, capture_output=True,
+                         text=True, check=True, cwd=self._root)
+            return result.stdout
+        except CalledProcessError as e:
+            raise RuntimeError(
+                f"Terraform command failed: {' '.join(command)}\n{e.stderr}"
+            ) from e

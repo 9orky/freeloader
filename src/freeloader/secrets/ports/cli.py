@@ -1,7 +1,7 @@
 import click
 
-from freeloader.shared import handle_cli_error
-from freeloader.shared.system import Freeloader
+from freeloader.shared.console import handle_cli_error
+from freeloader.shared.runtime import Freeloader
 
 from .. import usecases
 

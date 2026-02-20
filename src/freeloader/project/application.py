@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from freeloader.shared import FreeloaderApplication
+from freeloader.shared.runtime import FreeloaderApplication
 from freeloader.shared.tech import TechStack
 
 from .domain import Project

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from freeloader.shared.system import Freeloader
+from freeloader.shared.runtime import Freeloader
 
 from ..application import ProjectApplication
 from .system.managed_project import ManagedProject

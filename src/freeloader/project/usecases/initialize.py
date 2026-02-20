@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from freeloader.shared.system import Freeloader
+from freeloader.shared.runtime import Freeloader
 from freeloader.shared.tech import detect_stack
 
 from ..application import ProjectApplication
@@ -14,7 +14,7 @@ def initialize_project(name: str, project_root: Path):
     for mp in ManagedProject.iter_all(freeloader.projects_folder):
         if mp.folder.name == name:
             raise ValueError(f"Project already registered with name '{name}'")
-        
+
         project = app.get_project(mp.project_id)
         if project.path == str(project_root):
             raise ValueError(f"Project '{project.name}' is registered")

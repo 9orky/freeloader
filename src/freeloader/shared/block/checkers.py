@@ -5,9 +5,13 @@ from pathlib import Path
 import hcl2
 from pydantic import ValidationError
 
-from freeloader.shared import yaml_io
+import yaml
 
 from .config import BlockContract
+
+
+def _load_yaml(path: Path) -> dict:
+    return yaml.safe_load(path.read_text()) or {}
 
 
 class BlocksRootInvalid(Exception):
@@ -66,7 +70,7 @@ class _BlockYmlValidationChecker(_BlockChecker):
             if not yml.exists():
                 continue
             try:
-                BlockContract.model_validate(yaml_io.load_yaml(yml))
+                BlockContract.model_validate(_load_yaml(yml))
             except ValidationError as exc:
                 result.append(f"{d.relative_to(blocks_root)}: {exc}")
         return result

@@ -4,12 +4,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from subprocess import run, CalledProcessError
 from typing import Union, List, Dict
+from uuid import UUID, uuid5, NAMESPACE_URL
 
 
 class CliCommandFailed(Exception):
     def __init__(self, cmd: str, error: str, raw_output: str):
         if isinstance(error, bytes):
-            error = error.decode(errors='replace')
+            error = error.decode(errors="replace")
 
         self.cmd = cmd
         self.error = error
@@ -32,7 +33,7 @@ class CommandOutput:
             return {}
 
     def extract_jsons(self):
-        pattern = r'{.*?}'
+        pattern = r"{.*?}"
         json_list = re.findall(pattern, self.raw)
 
         extracted_jsons = []
@@ -53,10 +54,16 @@ class CommandOutput:
 def run_cli(command: str | list[str], chdir: Path | None = None) -> CommandOutput:
     if chdir is not None and not chdir.is_dir():
         raise ValueError(f"Invalid directory: {chdir}")
-    
+
     try:
-        result = run(command, capture_output=True, text=True, check=True, cwd=chdir)
+        result = run(command, capture_output=True,
+                     text=True, check=True, cwd=chdir)
         return CommandOutput(result.stdout)
     except CalledProcessError as e:
-        raise CliCommandFailed(cmd=command, error=e.stderr, raw_output=e.output)
+        raise CliCommandFailed(
+            cmd=command, error=e.stderr, raw_output=e.output)
 
+
+def path_to_id(path_str: str) -> UUID:
+    normalized = Path(path_str).resolve().as_posix()
+    return uuid5(NAMESPACE_URL, normalized)

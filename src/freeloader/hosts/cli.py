@@ -3,8 +3,7 @@ from pathlib import Path
 import typer
 
 from freeloader.factory import Factory
-from freeloader.shared.console import error, info, print_table, success, warn
-from freeloader.shared.errors import handle_errors
+from freeloader.shared.console import error, handle_errors, info, print_table, success, warn
 
 
 hosts_app = typer.Typer(

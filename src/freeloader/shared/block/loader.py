@@ -1,9 +1,13 @@
 from pathlib import Path
 
-from freeloader.shared import yaml_io
+import yaml
 
 from .checkers import validate_blocks_root
 from .config import BlockContract
+
+
+def _load_yaml(path: Path) -> dict:
+    return yaml.safe_load(path.read_text()) or {}
 
 
 class BlockLoader:
@@ -24,7 +28,7 @@ class BlockLoader:
         return self._parse(path)
 
     def _parse(self, path: Path) -> BlockContract:
-        data = yaml_io.load_yaml(path)
+        data = _load_yaml(path)
         return BlockContract.model_validate(data)
 
     def block_ids(self) -> list[str]:
