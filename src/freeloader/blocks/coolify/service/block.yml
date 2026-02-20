@@ -1,0 +1,43 @@
+block:
+  description: Deploys a Docker Compose service on a Coolify server.
+  layer: deploy
+
+provides:
+  service_uuid:
+    description: Internal UUID of the Coolify service.
+  app_url:
+    description: Public URL of the deployed service.
+
+requires:
+  registry.image_path:
+    description: Full Docker image reference used in the default compose file.
+    optional: true
+  platform.project_uuid:
+    description: Coolify project UUID under which the service is created.
+
+config:
+  basic:
+    - name: name
+      description: Service name.
+      required: true
+    - name: domain
+      description: Custom domain for the service.
+      default: ""
+
+  advanced:
+    - name: environment_name
+      description: Coolify environment name.
+      default: production
+    - name: server_uuid
+      description: UUID of the target Coolify server.
+    - name: destination_uuid
+      description: UUID of the Coolify network destination.
+    - name: compose
+      description: Custom Docker Compose content. Defaults to a single-service compose using the registry image.
+      default: ""
+
+  secrets:
+    - name: coolify_token
+      description: Coolify API token.
+    - name: coolify_endpoint
+      description: Coolify API base URL.

@@ -1,0 +1,53 @@
+block:
+  description: Creates a GitHub repository with optional branch protection and Actions secrets.
+  layer: source
+
+provides:
+  repo_name:
+    description: Full repository name (org/repo).
+  clone_url:
+    description: SSH clone URL of the repository.
+
+requires:
+  registry.host:
+    description: Registry hostname stored as a GitHub Actions secret.
+    optional: true
+  registry.user:
+    description: Registry username stored as a GitHub Actions secret.
+    optional: true
+  registry.token:
+    description: Registry token stored as a GitHub Actions secret.
+    optional: true
+    sensitive: true
+  registry.image_path:
+    description: Full image path stored as a GitHub Actions secret.
+    optional: true
+  deploy.webhook_url:
+    description: Deployment webhook URL stored as a GitHub Actions secret.
+    optional: true
+    sensitive: true
+
+config:
+  basic:
+    - name: name
+      description: Repository name.
+      required: true
+    - name: org
+      description: GitHub organisation or user namespace to create the repository under.
+      default: ""
+
+  advanced:
+    - name: visibility
+      description: Repository visibility.
+      default: private
+      choices: [private, public]
+    - name: description
+      description: Repository description.
+      default: ""
+    - name: protect_main
+      description: Enable branch protection on the main branch.
+      default: false
+
+  secrets:
+    - name: github_token
+      description: GitHub personal access token with repo scope.

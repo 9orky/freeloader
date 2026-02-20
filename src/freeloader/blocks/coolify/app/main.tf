@@ -24,7 +24,7 @@ variable "coolify_endpoint" {
   type = string
 }
 
-variable "coolify_project_uuid" {
+variable "platform_project_uuid" {
   type = string
 }
 
@@ -71,7 +71,7 @@ resource "terraform_data" "app" {
   input = {
     name                       = var.name
     server_uuid                = var.server_uuid
-    project_uuid               = var.coolify_project_uuid
+    project_uuid               = var.platform_project_uuid
     environment_name           = var.environment_name
     destination_uuid           = var.destination_uuid
     docker_registry_image_name = var.registry_image_path
@@ -90,7 +90,7 @@ resource "terraform_data" "app" {
         -H "Content-Type: application/json" \
         -d '{
           "server_uuid": "${var.server_uuid}",
-          "project_uuid": "${var.coolify_project_uuid}",
+          "project_uuid": "${var.platform_project_uuid}",
           "environment_name": "${var.environment_name}",
           "destination_uuid": "${var.destination_uuid}",
           "docker_registry_image_name": "${var.registry_image_path}",

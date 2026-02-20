@@ -1,0 +1,28 @@
+block:
+  description: Creates a Coolify project and returns its UUID.
+  layer: platform
+
+provides:
+  project_uuid:
+    description: UUID of the Coolify project.
+  project_name:
+    description: Name of the Coolify project.
+
+requires: {}
+
+config:
+  basic:
+    - name: name
+      description: Coolify project name.
+      required: true
+
+  advanced:
+    - name: description
+      description: Optional project description.
+      default: ""
+
+  secrets:
+    - name: coolify_token
+      description: Coolify API token.
+    - name: coolify_endpoint
+      description: Coolify API base URL.

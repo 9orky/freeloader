@@ -1,0 +1,41 @@
+block:
+  description: Provisions an AWS EC2 instance with a security group and optional SSH key.
+  layer: infra
+
+provides:
+  ip_address:
+    description: Public IP address of the EC2 instance.
+  instance_id:
+    description: AWS instance ID.
+  ssh_user:
+    description: Default SSH user for the instance (ubuntu).
+  public_dns:
+    description: Public DNS name of the EC2 instance.
+
+requires: {}
+
+config:
+  basic:
+    - name: name
+      description: Name tag for the EC2 instance.
+      required: true
+
+  advanced:
+    - name: instance_type
+      description: EC2 instance type.
+      default: t3.micro
+    - name: region
+      description: AWS region to deploy into.
+      default: eu-central-1
+    - name: ami
+      description: AMI ID to use. Defaults to latest Ubuntu 24.04.
+      default: ""
+    - name: ssh_public_key
+      description: SSH public key content to authorise on the instance.
+      default: ""
+
+  secrets:
+    - name: aws_access_key_id
+      description: AWS access key ID.
+    - name: aws_secret_access_key
+      description: AWS secret access key.

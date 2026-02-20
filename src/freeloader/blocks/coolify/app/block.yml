@@ -1,0 +1,45 @@
+block:
+  description: Deploys a Docker image application on a Coolify server.
+  layer: deploy
+
+provides:
+  app_uuid:
+    description: Internal UUID assigned by Coolify.
+  app_url:
+    description: Public URL of the deployed application.
+
+requires:
+  registry.image_path:
+    description: Full Docker image reference to deploy.
+  platform.project_uuid:
+    description: Coolify project UUID under which the app is created.
+
+config:
+  basic:
+    - name: name
+      description: Application name.
+      required: true
+    - name: domain
+      description: Custom domain for the application.
+      default: ""
+
+  advanced:
+    - name: environment_name
+      description: Coolify environment name.
+      default: production
+    - name: docker_registry_image_tag
+      description: Image tag to deploy.
+      default: latest
+    - name: ports_exposes
+      description: Ports exposed by the container.
+      default: "80"
+    - name: server_uuid
+      description: UUID of the target Coolify server.
+    - name: destination_uuid
+      description: UUID of the Coolify network destination.
+
+  secrets:
+    - name: coolify_token
+      description: Coolify API token.
+    - name: coolify_endpoint
+      description: Coolify API base URL.

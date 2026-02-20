@@ -2,11 +2,13 @@ from pathlib import Path
 
 from freeloader.shared import yaml_io
 
+from .checkers import validate_blocks_root
 from .config import BlockContract
 
 
 class BlockLoader:
     def __init__(self, blocks_root: Path) -> None:
+        validate_blocks_root(blocks_root)
         self._root = blocks_root
 
     def load_all(self) -> dict[str, BlockContract]:

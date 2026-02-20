@@ -1,0 +1,40 @@
+block:
+  description: Creates a GitLab project and returns container registry credentials.
+  layer: registry
+
+provides:
+  host:
+    description: Container registry hostname (registry.gitlab.com).
+  user:
+    description: Registry username (oauth2 for token auth).
+  token:
+    description: Registry access token.
+    sensitive: true
+  image_path:
+    description: Full image path including namespace.
+  project_id:
+    description: GitLab project numeric ID.
+
+requires: {}
+
+config:
+  basic:
+    - name: name
+      description: GitLab project name and registry namespace.
+      required: true
+    - name: visibility
+      description: Project visibility.
+      default: private
+      choices: [private, public]
+
+  advanced:
+    - name: description
+      description: GitLab project description.
+      default: ""
+    - name: token_scopes
+      description: Access token scopes granted to freeloader.
+      default: [read_registry, write_registry]
+
+  secrets:
+    - name: gitlab_token
+      description: GitLab personal access token with API scope.

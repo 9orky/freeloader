@@ -1,0 +1,32 @@
+block:
+  description: Generates a Dockerfile in the project directory using a language/server template.
+  layer: source
+
+provides: {}
+
+requires: {}
+
+config:
+  basic:
+    - name: language
+      description: Application language.
+      default: python
+      choices: [python, node]
+    - name: package_manager
+      description: Package manager to use.
+      default: pip
+      choices: [pip, uv, npm, pnpm]
+    - name: server
+      description: Web server or runtime entrypoint.
+      default: nginx
+      choices: [nginx, uvicorn]
+
+  advanced:
+    - name: language_version
+      description: Language runtime version tag.
+      default: "3"
+    - name: server_version
+      description: Server image version tag.
+      default: "1"
+    - name: target_folder
+      description: Project directory to write the Dockerfile into. Defaults to project.path.

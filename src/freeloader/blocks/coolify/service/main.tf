@@ -24,7 +24,7 @@ variable "coolify_endpoint" {
   type = string
 }
 
-variable "coolify_project_uuid" {
+variable "platform_project_uuid" {
   type = string
 }
 
@@ -74,7 +74,7 @@ provider "coolify" {
 resource "coolify_service" "service" {
   name             = var.name
   server_uuid      = var.server_uuid
-  project_uuid     = var.coolify_project_uuid
+  project_uuid     = var.platform_project_uuid
   destination_uuid = var.destination_uuid
   environment_name = var.environment_name
   instant_deploy   = false
