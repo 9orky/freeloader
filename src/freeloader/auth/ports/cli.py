@@ -27,5 +27,6 @@ def ls():
 @click.argument("name", required=True)
 @console.handle_cli_error
 def provider(name: str):
-    credentials = console.prompter([], True)
+    provider = usecases.get_provider(name)
+    credentials = console.prompter(provider.auth_keys, True)
     usecases.auth_provider(name, credentials)

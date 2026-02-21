@@ -13,6 +13,16 @@ class ServiceProviders:
             "auth_keys": provider.auth_keys,
         } for name, provider in load_all_providers().items()]
     
+    def get(self, name: str) -> dict[str, str | bool | list[str]]:
+        provider = load_provider(name)
+        
+        return {
+            "name": name,
+            "requires_auth": provider.requires_auth,
+            "requires_tech_stack": provider.requires_tech_stack,
+            "auth_keys": provider.auth_keys,
+        }
+    
     def get_credential_keys(self, name: str) -> list[str]:
         provider = load_provider(name)
         return provider.auth_keys

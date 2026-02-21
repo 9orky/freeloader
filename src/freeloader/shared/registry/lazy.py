@@ -30,7 +30,6 @@ class LazyRegistry(Generic[T]):
                     if key not in self._classes:
                         raise KeyError(f"'{key}' not found in {self.name}")
 
-                    print(f"[*] Initializing {key}...")
                     cls = self._classes[key]
                     self._instances[key] = cls()
 
