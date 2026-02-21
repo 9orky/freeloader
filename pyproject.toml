@@ -16,6 +16,10 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "eventsourcing>=9.5.3",
     "ruamel-yaml>=0.19.1",
+    "python-gitlab>=8.0.0",
+    "pygithub>=2.8.1",
+    "coolipy>=0.0.8",
+    "boto3>=1.42.54",
 ]
 
 [dependency-groups]

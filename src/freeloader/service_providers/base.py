@@ -1,29 +1,31 @@
 import abc
-import dataclasses
+from typing import Protocol
+from dataclasses import dataclass
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclass(frozen=True)
 class Credentials:
     kv: dict[str, str]
 
 
-class ServiceProvider(abc.ABC):
-    @property
-    @abc.abstractmethod
-    def name(self) -> str:
-        raise NotImplementedError
+class ServiceProviderProtocol(Protocol):
+    auth_keys: list[str]
+    requires_auth: bool
+    requires_tech_stack: bool = False
 
-    @property
-    @abc.abstractmethod
-    def credential_keys(self) -> list[str]:
-        raise NotImplementedError
 
+class ServiceProvider(abc.ABC, ServiceProviderProtocol):
     @abc.abstractmethod
     def check_credentials(self, credentials: Credentials):
         raise NotImplementedError
     
-    def requires_auth(self) -> bool:
-        return bool(self.credential_keys)
+    def check_installation(self) -> None:
+        pass
     
-    def requires_tech_stack(self) -> bool:
-        return False
+
+class ServiceProviderError(Exception):
+    pass
+
+
+class ServiceProviderAuthError(ServiceProviderError):
+    pass

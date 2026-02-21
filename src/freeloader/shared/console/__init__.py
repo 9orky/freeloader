@@ -55,3 +55,7 @@ def handle_errors(func):
             raise typer.Exit(1)
 
     return wrapper
+
+
+def prompter(prompts: list[str], hide_input: bool = False) -> dict[str, str]:
+    return {prompt: typer.prompt(prompt, hide_input=hide_input) for prompt in prompts}

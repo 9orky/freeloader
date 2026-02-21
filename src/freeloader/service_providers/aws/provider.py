@@ -1,17 +1,24 @@
-from ..base import ServiceProvider, Credentials
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+
+from ..base import ServiceProvider, Credentials, ServiceProviderAuthError
 from ..registry import providers
 
 
 @providers.register("aws")
 class AWS(ServiceProvider):
-    @property
-    def name(self) -> str:
-        return "aws"
-
-    @property
-    def credential_keys(self) -> list[str]:
-        return ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+    auth_keys = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+    requires_auth = True
 
     def check_credentials(self, credentials: Credentials) -> None:
-        # install boto3
-        pass
+        session = boto3.Session(
+            aws_access_key_id=credentials.kv["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=credentials.kv["AWS_SECRET_ACCESS_KEY"],
+            region_name=credentials.kv.get("AWS_REGION", "us-east-1")
+        )
+
+        try:
+            sts = session.client('sts')
+            sts.get_caller_identity()
+        except (ClientError, NoCredentialsError) as e:
+            raise ServiceProviderAuthError(str(e))

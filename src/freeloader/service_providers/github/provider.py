@@ -1,17 +1,19 @@
-from ..base import ServiceProvider, Credentials
+from github import Github, BadCredentialsException, Auth
+
+from ..base import ServiceProvider, Credentials, ServiceProviderAuthError
 from ..registry import providers
 
 
 @providers.register("github")
 class GitHub(ServiceProvider):
-    @property
-    def name(self) -> str:
-        return "github"
-
-    @property
-    def credential_keys(self) -> list[str]:
-        return ["GITHUB_TOKEN"]
+    auth_keys = ["GITHUB_TOKEN"]
+    requires_auth = True
 
     def check_credentials(self, credentials: Credentials) -> None:
-        # install PyGithub
-        pass
+        auth = Auth.Token(credentials.kv["GITHUB_TOKEN"])
+        gh = Github(auth=auth)
+
+        try:
+            gh.get_user()
+        except BadCredentialsException as e:
+            raise ServiceProviderAuthError(str(e))

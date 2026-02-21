@@ -1,17 +1,16 @@
-from ..base import ServiceProvider, Credentials
+from gitlab import Gitlab, GitlabAuthenticationError
+
+from ..base import ServiceProvider, Credentials, ServiceProviderAuthError
 from ..registry import providers
 
 
 @providers.register("gitlab")
 class GitLab(ServiceProvider):
-    @property
-    def name(self) -> str:
-        return "gitlab"
-
-    @property
-    def credential_keys(self) -> list[str]:
-        return ["GITLAB_TOKEN"]
+    auth_keys = ["GITLAB_TOKEN"]
+    requires_auth = True
 
     def check_credentials(self, credentials: Credentials) -> None:
-        # install python-gitlab
-        pass
+        try:
+            Gitlab(private_token=credentials.kv["GITLAB_TOKEN"]).auth()
+        except GitlabAuthenticationError as e:
+            raise ServiceProviderAuthError(str(e))
