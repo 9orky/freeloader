@@ -1,14 +1,10 @@
-from .checkers import BlocksRootInvalid, validate_blocks_root
-from .dag import AmbiguousProvider, CircularDependency, DAGError, DuplicateBlockId, MissingRequirement
-from .runner import BlockRunner
+from .facade import interface
+from .base import TerraformBridge, SecretsBridge
+from .dag import BlockRef
 
 __all__ = [
-    "BlockRunner",
-    "DAGError",
-    "MissingRequirement",
-    "AmbiguousProvider",
-    "CircularDependency",
-    "DuplicateBlockId",
-    "BlocksRootInvalid",
-    "validate_blocks_root",
+    "interface",
+    "BlockRef",
+    "TerraformBridge",
+    "SecretsBridge",
 ]

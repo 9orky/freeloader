@@ -1,2 +1,8 @@
-from .registry import tech_detector, detect_stack, TechStack
-from . import language  # noqa: F401 — ensures detectors are registered
+from pathlib import Path
+
+from .registry import TechStack
+
+
+def detect(project_dir: Path) -> TechStack | None:
+    from .registry import detect_stack
+    return detect_stack(Path(project_dir))

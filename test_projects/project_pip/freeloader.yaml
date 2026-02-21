@@ -1,0 +1,18 @@
+project:
+  name: project_pip
+  description: ''
+blocks:
+  - use: github.actions_ci
+    config:
+      language: node
+      package_manager: npm
+      language_version: ''
+      test_command: npm test
+  - use: github.repo
+    config:
+      org: ''
+  - use: git.gitignore
+    config:
+      language: python
+  - use: git.local_repo
+    config: {}

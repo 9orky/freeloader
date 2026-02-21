@@ -2,13 +2,23 @@ from __future__ import annotations
 
 import heapq
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import Any
 
-from .config import BlockContract
-from .models import LAYER_ORDER
+from pydantic import BaseModel, computed_field
 
-if TYPE_CHECKING:
-    from freeloader.project.metadata.manifest import BlockRef
+from .contract import BlockContract
+from .layer import LAYER_ORDER
+
+
+class BlockRef(BaseModel):
+    use: str
+    id: str | None = None
+    config: dict[str, Any] = {}
+
+    @computed_field
+    @property
+    def resolved_id(self) -> str:
+        return self.id or self.use
 
 
 @dataclass(frozen=True)

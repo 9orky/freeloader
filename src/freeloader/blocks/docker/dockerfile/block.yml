@@ -30,3 +30,5 @@ config:
       default: "1"
     - name: target_folder
       description: Project directory to write the Dockerfile into. Defaults to project.path.
+
+  secrets: []

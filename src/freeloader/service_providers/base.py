@@ -1,6 +1,6 @@
 import abc
 import dataclasses
-from .adapter import check_if_provider_has_credentials
+
 
 @dataclasses.dataclass(frozen=True)
 class Credentials:
@@ -21,9 +21,9 @@ class ServiceProvider(abc.ABC):
     @abc.abstractmethod
     def check_credentials(self, credentials: Credentials):
         raise NotImplementedError
-
-    def is_installed(self) -> bool:
-        for key in self.credential_keys:
-            if check_if_provider_has_credentials(self.name, key):
-                return True
+    
+    def requires_auth(self) -> bool:
+        return bool(self.credential_keys)
+    
+    def requires_tech_stack(self) -> bool:
         return False

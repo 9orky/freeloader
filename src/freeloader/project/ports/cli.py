@@ -1,51 +1,45 @@
-import os
-from pathlib import Path
 import click
 
-from freeloader.shared.console import handle_cli_error
-from freeloader.shared.runtime import Freeloader
-
 from .. import usecases
+from freeloader import runtime, console
 
 
 @click.group(name="project")
 def project_group():
-    Freeloader().must_be_installed()
+    pass
 
 
 @project_group.command()
-@handle_cli_error
+@console.handle_cli_error
 def ls():
     all_projects = usecases.list_all_projects()
     if len(all_projects) == 0:
-        click.secho("No projects registered yet.", fg="yellow", bold=True)
+        console.warn("No projects registered yet.")
         return 0
 
-    click.echo("Registered projects:\n")
-    for project in all_projects:
-        click.secho(f"- {project['name']} ({project['path']})", fg="cyan")
+    console.print_table(
+        "Registered Projects", 
+        ["Name", "Path"], 
+        [[project['name'], project['path']] for project in all_projects]
+    )
 
 
 @project_group.command()
-@handle_cli_error
-def init():
-    project_path = Path(os.getcwd())
-    usecases.initialize_project(project_path.name, project_path)
-    click.secho(
-        f"\nProject '{project_path.name}' initialized!\n", fg="green", bold=True)
+@console.handle_cli_error
+def manage():
+    usecases.initialize_project(runtime.cwd.name, runtime.cwd)
+    console.ok(f"Project '{runtime.cwd.name}' is now managed by Freeloader.")
 
 
 @project_group.command()
-@handle_cli_error
+@console.handle_cli_error
 def provision():
-    project_path = Path(os.getcwd())
-    usecases.provision_project(project_path)
+    usecases.provision(runtime.cwd)
+    console.ok(f"Project '{runtime.cwd.name}' provisioned successfully.")
 
 
 @project_group.command()
-@handle_cli_error
-def destroy():
-    project_path = Path(os.getcwd())
-    usecases.destroy_project(project_path)
-    click.secho(
-        f"\nProject '{project_path.name}' destroyed successfully!\n", fg="red", bold=True)
+@console.handle_cli_error
+def untrack():
+    usecases.destroy_project(runtime.cwd)
+    console.ok(f"Project '{runtime.cwd.name}' is not welcome anymore.")

@@ -1,28 +1,39 @@
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, Type
 
-import yaml
+from ruamel.yaml import YAML
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
+_yaml = YAML()
+_yaml.indent(mapping=2, sequence=4, offset=2)
+_yaml.preserve_quotes = True
+_yaml.default_flow_style = False
+
 
 def load_yaml(path: Path) -> dict:
-    return yaml.safe_load(path.read_text()) or {}
-
-
-def load_yaml_model(path: Path, model_class: type[T]) -> T:
-    return model_class.model_validate(load_yaml(path))
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        return _yaml.load(f) or {}
 
 
 def save_yaml(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
+    with path.open("w", encoding="utf-8") as f:
+        _yaml.dump(data, f)
+
+
+def load_yaml_model(path: Path, model_class: Type[T]) -> T:
+    data = load_yaml(path)
+    return model_class.model_validate(data)
 
 
 def save_yaml_model(path: Path, instance: BaseModel) -> None:
-    save_yaml(path, instance.model_dump(
-        mode="json", exclude_none=True, exclude=_computed_fields(instance)))
+    exclude = _computed_fields(instance)
+    data = instance.model_dump(mode="python", exclude_none=True, exclude=exclude)
+    save_yaml(path, data)
 
 
 def _computed_fields(instance: BaseModel) -> set[str]:

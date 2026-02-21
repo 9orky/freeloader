@@ -1,12 +1,14 @@
 import click
 
-from freeloader.secrets.storage import Storage, PasswordRequiredError
-from freeloader.shared.runtime import Freeloader
+from ..storage import Storage, PasswordRequiredError
+from freeloader import runtime
 
 
 def load_storage() -> Storage:
-    freeloader = Freeloader()
-    return Storage(freeloader.secrets_folder, freeloader.session_folder)
+    return Storage(
+        runtime.secrets_folder, 
+        runtime.session_folder,
+    )
 
 
 def ensure_unlocked(storage: Storage) -> None:

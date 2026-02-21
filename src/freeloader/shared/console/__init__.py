@@ -1,6 +1,5 @@
 import functools
 
-import click
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -13,7 +12,7 @@ def info(message: str) -> None:
     _console.print(message, style="dim")
 
 
-def success(message: str) -> None:
+def ok(message: str) -> None:
     _console.print(f"✓ {message}", style="green")
 
 
@@ -40,8 +39,7 @@ def handle_cli_error(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            click.secho(f"\nError: {str(e)}\n",
-                        fg="white", bg="red", bold=True, err=True)
+            error(str(e))
             raise SystemExit(1)
 
     return wrapper
@@ -53,8 +51,7 @@ def handle_errors(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            _err_console.print(
-                f"\nError: {str(e)}\n", style="bold white on red")
+            error(str(e))
             raise typer.Exit(1)
 
     return wrapper

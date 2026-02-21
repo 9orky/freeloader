@@ -3,7 +3,7 @@ from pathlib import Path
 import typer
 
 from freeloader.factory import Factory
-from freeloader.shared.console import error, handle_errors, info, print_table, success, warn
+from freeloader.shared.console import error, handle_errors, info, print_table, ok, warn
 
 
 hosts_app = typer.Typer(
@@ -63,7 +63,7 @@ def import_host(
         for h in scan_result.config_hosts:
             result = uc.import_host(h)
             tag = "updated" if result.replaced else "imported"
-            success(f"{result.alias} → {result.host} ({tag})")
+            ok(f"{result.alias} → {result.host} ({tag})")
         return
 
     matched = next(
@@ -74,7 +74,7 @@ def import_host(
 
     result = uc.import_host(matched)
     tag = "updated" if result.replaced else "imported"
-    success(f"{result.alias} → {result.host} ({tag})")
+    ok(f"{result.alias} → {result.host} ({tag})")
 
 
 @hosts_app.command(help="List registered hosts")
@@ -113,7 +113,7 @@ def add(
     uc = Factory().hosts.usecases()
     result = uc.add(alias, host, user, port, identity_file, tag_list)
     tag = "updated" if result.replaced else "added"
-    success(f"{result.alias} → {result.host} ({tag})")
+    ok(f"{result.alias} → {result.host} ({tag})")
 
 
 @hosts_app.command(help="Remove a host from inventory")
@@ -122,7 +122,7 @@ def remove(alias: str = typer.Argument(..., help="Host alias to remove")) -> Non
     uc = Factory().hosts.usecases()
     result = uc.remove(alias)
     if result.found:
-        success(f"Removed '{result.alias}'")
+        ok(f"Removed '{result.alias}'")
     else:
         error(f"Host '{result.alias}' not found")
         raise typer.Exit(1)
@@ -138,7 +138,7 @@ def check(
     if alias:
         result = uc.check(alias)
         if result.reachable:
-            success(f"{result.alias} ({result.host}) — reachable")
+            ok(f"{result.alias} ({result.host}) — reachable")
         else:
             error(f"{result.alias} ({result.host}) — {result.error}")
             raise typer.Exit(1)
@@ -150,6 +150,6 @@ def check(
         for h in all_hosts.hosts:
             result = uc.check(h.alias)
             if result.reachable:
-                success(f"{result.alias} ({result.host}) — reachable")
+                ok(f"{result.alias} ({result.host}) — reachable")
             else:
                 error(f"{result.alias} ({result.host}) — {result.error}")

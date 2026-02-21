@@ -1,6 +1,4 @@
-from pathlib import Path
-
-from freeloader.shared.runtime import Freeloader
+from freeloader import runtime
 
 from ..application import ProjectApplication
 from .system.managed_project import ManagedProject
@@ -8,10 +6,9 @@ from .system.managed_project import ManagedProject
 
 def list_all_projects() -> list[dict]:
     app = ProjectApplication()
-    freeloader = Freeloader()
 
     projects = []
-    for mp in ManagedProject.iter_all(freeloader.projects_folder):
+    for mp in ManagedProject.iter_all(runtime.projects_folder):
         project = app.get_project(mp.project_id)
         projects.append({
             "id": str(project.id),

@@ -1,22 +1,9 @@
 from pathlib import Path
-from typing import Any, Callable, TypeAlias, runtime_checkable, Protocol
+from typing import Any
 
+from .base import TerraformBridge, SecretsBridge
 from .context import ExecutionContext
 from .dag import ResolvedBlock
-
-
-@runtime_checkable
-class TerraformProtocol(Protocol):
-    def prepare(self, template: Path,
-                variables: dict[str, str | list[str] | dict[str, str]]) -> None: ...
-
-    def apply(self, *, timeout: int | None = None) -> None: ...
-    def output(self) -> dict[str, object] | list[object]: ...
-    def destroy(self, *, timeout: int | None = None) -> None: ...
-
-
-TerraformFactory: TypeAlias = Callable[[Path], TerraformProtocol]
-SecretsReader: TypeAlias = Callable[[str, list[str]], dict[str, str]]
 
 
 class BlockRunner:
@@ -24,14 +11,14 @@ class BlockRunner:
         self,
         work_dir: Path,
         blocks_root: Path,
-        secrets_reader: SecretsReader,
-        terraform_factory: TerraformFactory,
+        secrets_bridge: SecretsBridge,
+        terraform_bridge: TerraformBridge,
         project_path: Path | None = None,
     ) -> None:
         self._work_dir = work_dir
         self._blocks_root = blocks_root
-        self._secrets_reader = secrets_reader
-        self._terraform_factory = terraform_factory
+        self._secrets_bridge = secrets_bridge
+        self._terraform_bridge = terraform_bridge
         self._project_path = project_path
 
     def run_all(
@@ -50,7 +37,7 @@ class BlockRunner:
         tfvars = self._build_tfvars(block, context)
         template = self._blocks_root / block.ref.use / "main.tf"
         work_dir = self._block_work_dir(block.ref.resolved_id)
-        tf = self._terraform_factory(work_dir)
+        tf = self._terraform_bridge 
         tf.prepare(template, tfvars)
         tf.apply()
         raw = tf.output()
