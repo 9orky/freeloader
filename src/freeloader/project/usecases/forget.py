@@ -5,8 +5,10 @@ from ..application import ProjectApplication
 from .system.managed_project import ManagedProject
 
 
-def destroy_project(project_root: Path):
+def forget_project(project_root: Path):
     app = ProjectApplication()
+    manifest_path = project_root / "freeloader.yaml"
+    manifest_path.unlink()
 
     for mp in ManagedProject.iter_all(runtime.projects_folder):
         project = app.get_project(mp.project_id)

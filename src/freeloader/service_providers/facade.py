@@ -23,10 +23,6 @@ class ServiceProviders:
             "auth_keys": provider.auth_keys,
         }
     
-    def get_credential_keys(self, name: str) -> list[str]:
-        provider = load_provider(name)
-        return provider.auth_keys
-
     def authorize_provider(self, name: str, credentials: dict[str, str]) -> None:
         provider = load_provider(name)
         provider.check_credentials(Credentials(kv=credentials))
