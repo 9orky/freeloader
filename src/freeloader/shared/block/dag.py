@@ -57,8 +57,7 @@ class DAGResolver:
         seen: set[str] = set()
         for ref in block_refs:
             if ref.resolved_id in seen:
-                raise DuplicateBlockId(
-                    f"Duplicate block id: {ref.resolved_id!r}")
+                raise DuplicateBlockId(f"Duplicate block id: {ref.resolved_id!r}")
             seen.add(ref.resolved_id)
 
         provides_map = self._build_provides_map(block_refs, contracts)

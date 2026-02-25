@@ -1,6 +1,8 @@
 from pathlib import Path
 from os import getenv
-from .base import BlockId, BlockRepository
+from .base import BlockRepository
+from .dag import BlockRef
+from .provisioner import Provisioner
 
 
 class Blocks:
@@ -20,9 +22,10 @@ class Blocks:
                 configs[block.id] = block.dump_config(full=full_config)
         return configs
     
-    def provision_resource(self, block_id: BlockId, config: dict[str, str]) -> dict[str, str]:
-        block = self._repository.get_by_id(block_id)
-        return block.provision(config)
+    def provision_resources(self, folder: Path, block_refs: list[BlockRef]):
+        provisioner = Provisioner(folder, self._repository)
+        provisioner.provision(block_refs)
+
 
 
 interface = Blocks()

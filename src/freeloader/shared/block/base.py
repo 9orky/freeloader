@@ -91,7 +91,7 @@ class BlockRepository:
     def get_by_names(self, names: list[str]) -> list[BlockProvider]:
         return [p for p in self.providers if p._folder.name in names]
 
-    def get_by_id(self, block_id: BlockId) -> Block | None:
+    def get_by_id(self, block_id: BlockId) -> Block:
         provider_name, block_name = block_id.split(".")
         
         provider = next((p for p in self.providers if p._folder.name == provider_name), None)

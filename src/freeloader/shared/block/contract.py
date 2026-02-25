@@ -66,27 +66,3 @@ class BlockContract(BaseModel):
             if f.group in groups and f.default is not None
         }
 
-
-class ConfigBuilder:
-    def __init__(self, contracts: dict[str, BlockContract]) -> None:
-        self._contracts = contracts
-
-    def build(
-        self,
-        block_id: str,
-        project_name: str,
-        full: bool = False,
-    ) -> dict[str, Any]:
-        contract = self._contracts[block_id]
-        groups = {"basic", "advanced"} if full else {"basic"}
-        result: dict[str, Any] = {}
-        for field in contract.config:
-            if field.group not in groups:
-                continue
-            if field.group == "secrets":
-                continue
-            if field.project_name_default or (field.required and field.default is None):
-                result[field.name] = project_name
-            elif field.default is not None:
-                result[field.name] = field.default
-        return result

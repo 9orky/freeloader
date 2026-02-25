@@ -17,6 +17,10 @@ class ManagedProject:
         (project_folder / cls.resources_root).mkdir()
         (project_folder / "project_id").write_text(str(project_id))
         return cls(project_folder)
+    
+    @classmethod
+    def load(cls, project_folder: Path) -> "ManagedProject":
+        return cls(project_folder)
 
     @property
     def root(self) -> Path:
