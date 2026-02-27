@@ -1,6 +1,0 @@
-      - uses: actions/setup-python@v5
-%{ if version != "" ~}
-        with:
-          python-version: "${version}"
-%{ endif ~}
-      - run: pip install -r requirements.txt

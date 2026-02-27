@@ -2,6 +2,7 @@ terraform {}
 
 variable "remote_url" {
   type = string
+  default = "file://here"
 
   validation {
     condition     = can(regex("^(https?|git|ssh|rsync|file)://", var.remote_url))

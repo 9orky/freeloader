@@ -35,3 +35,12 @@ def provision():
 def forget():
     usecases.forget_project(runtime.cwd)
     console.ok(f"Project '{runtime.cwd.name}' is not welcome anymore.")
+
+
+@project_group.command()
+# @console.handle_cli_error
+def reset():
+    usecases.forget_project(runtime.cwd)
+    usecases.manage_project(runtime.cwd.name, runtime.cwd, full_manifest=False)
+    usecases.provision(runtime.cwd)
+    console.ok(f"Project '{runtime.cwd.name}' has been reset successfully.")

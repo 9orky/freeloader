@@ -1,6 +1,0 @@
-      - uses: astral-sh/setup-uv@v5
-%{ if version != "" ~}
-        with:
-          python-version: "${version}"
-%{ endif ~}
-      - run: uv sync

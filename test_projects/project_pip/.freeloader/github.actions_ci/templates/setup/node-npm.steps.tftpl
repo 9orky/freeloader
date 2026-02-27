@@ -1,6 +1,0 @@
-      - uses: actions/setup-node@v4
-%{ if version != "" ~}
-        with:
-          node-version: "${version}"
-%{ endif ~}
-      - run: npm ci

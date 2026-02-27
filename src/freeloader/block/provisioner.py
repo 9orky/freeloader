@@ -14,8 +14,7 @@ class Provisioner:
         self._resolver = DAGResolver()
 
     def provision(self, resources_folder: Path,  block_refs: list[BlockRef]) -> None:
-        assert resources_folder.is_dir(
-        ), f"Folder {resources_folder} not found"
+        assert resources_folder.is_dir(), f"Folder {resources_folder} not found"
         assert block_refs, "At least one block reference must be provided"
 
         blocks = self._loader.load_by_refs(block_refs)
@@ -39,3 +38,15 @@ class Provisioner:
             
             print(f"Terraform plan for block {res_block.id}:")
             self._runner.save_terraform_plan(resource)
+
+        for res_block in resolved_blocks:
+            resource = resources[res_block.id]
+
+            print(f"Terraform apply for block {res_block.id}:")
+            output = self._runner.apply_terraform(resource)
+            context.set_outputs(res_block.id, res_block.contract.map_outputs(output if isinstance(output, dict) else {}))
+
+        print("Provisioning completed successfully.")
+        print("Final outputs:")
+        for block_id, outputs in context._outputs.items():
+            print(f"{block_id}: {outputs}")

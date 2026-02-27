@@ -21,8 +21,10 @@ class BlockRunner:
     def save_terraform_plan(self, resource: ProvisioningResource) -> None:
         TerraformResource(resource.folder).plan()
 
-    def apply_terraform(self, resource: ProvisioningResource) -> None:
-        pass
+    def apply_terraform(self, resource: ProvisioningResource) -> dict | list:
+        TerraformResource(resource.folder).apply()
+        return TerraformResource(resource.folder).output()
+        
 
         # self._terraform.apply()
         # raw = self._terraform.output()
