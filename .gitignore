@@ -8,7 +8,6 @@
 *.tfvars
 *.tfvars.json
 *.tfvars.yaml
-/projects
 .venv
 __pycache__/
 **/__pycache__/
