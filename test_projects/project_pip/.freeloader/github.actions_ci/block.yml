@@ -1,0 +1,41 @@
+block:
+  description: Generates a GitHub Actions CI/CD workflow file in the project directory.
+  layer: build
+
+provides: {}
+
+requires:
+  registry.host:
+    description: Registry hostname used in the workflow login step.
+    optional: true
+  registry.image_path:
+    description: Full image path for docker build-and-push.
+    optional: true
+  deploy.webhook_url:
+    description: Deployment webhook URL triggered after a release build.
+    optional: true
+    sensitive: true
+
+config:
+  basic:
+    - name: language
+      description: Application language.
+      default: node
+      choices: [node, python]
+    - name: package_manager
+      description: Package manager used for installing dependencies.
+      default: npm
+      choices: [npm, pnpm, yarn, pip, uv]
+    - name: language_version
+      description: Runtime version passed to the setup action (e.g. "20", "3.12"). Empty uses the action default.
+      default: ""
+    - name: test_command
+      description: Test command to run in CI. Set to "skip" to omit the test job.
+      default: npm test
+
+  advanced:
+    - name: build_platforms
+      description: Docker build platforms (comma-separated).
+      default: linux/amd64
+    - name: target_folder
+      description: Project directory to write the workflow file into. Defaults to project.path.

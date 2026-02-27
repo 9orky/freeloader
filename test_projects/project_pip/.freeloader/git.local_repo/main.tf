@@ -1,18 +1,20 @@
+terraform {}
+
 variable "remote_url" {
-  type    = string
+  type = string
 
   validation {
-    condition = can(regex("^(https?|git|ssh|rsync|file)://", var.remote_url))
-    error_message = "The remote_url (${var.remote_url}) must be a valid Git URL."
+    condition     = can(regex("^(https?|git|ssh|rsync|file)://", var.remote_url))
+    error_message = "The remote_url must be a valid Git URL (https, git, ssh, rsync, or file scheme)."
   }
 }
 
 variable "target_folder" {
-  type    = string
+  type = string
 
   validation {
-    condition = direxists(var.target_folder)
-    error_message = "The target_folder (${var.target_folder}) must exist."
+    condition     = length(var.target_folder) > 0
+    error_message = "The target_folder must not be empty."
   }
 }
 

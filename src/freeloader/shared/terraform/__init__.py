@@ -1,4 +1,4 @@
-from .facade import Terraform
+from .facade import TerraformResource
 from .variable import TerraformVariable
 
-__all__ = ["Terraform", "TerraformVariable"]
+__all__ = ["TerraformResource", "TerraformVariable"]

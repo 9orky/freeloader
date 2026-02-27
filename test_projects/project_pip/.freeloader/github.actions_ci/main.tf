@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
+    }
+  }
+}
+
 variable "language" {
   type    = string
   default = "node"
@@ -27,8 +36,8 @@ variable "target_folder" {
   type = string
 
   validation {
-    condition     = direxists(var.target_folder)
-    error_message = "The target_folder (${var.target_folder}) must exist."
+    condition     = length(var.target_folder) > 0
+    error_message = "The target_folder must not be empty."
   }
 }
 

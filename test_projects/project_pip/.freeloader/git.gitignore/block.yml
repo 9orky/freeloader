@@ -1,0 +1,17 @@
+block:
+  description: Generates a .gitignore file in the project directory.
+  layer: source
+
+provides: {}
+
+requires: {}
+
+config:
+  basic:
+    - name: language
+      description: Application language; selects the ignore patterns template.
+      default: python
+
+  advanced:
+    - name: target_folder
+      description: Project directory to write the .gitignore into. Defaults to project.path.

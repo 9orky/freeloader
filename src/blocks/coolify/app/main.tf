@@ -4,6 +4,10 @@ terraform {
       source  = "sierrajc/coolify"
       version = "~> 0.10"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
+    }
   }
 }
 

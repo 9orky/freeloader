@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
+    }
+  }
+}
+
 variable "language" {
   type    = string
   default = "python"
@@ -9,18 +18,18 @@ variable "language" {
 }
 
 variable "target_folder" {
-  type    = string
+  type = string
 
   validation {
-    condition = direxists(var.target_folder)
-    error_message = "The target_folder (${var.target_folder}) must exist."
+    condition     = length(var.target_folder) > 0
+    error_message = "The target_folder must not be empty."
   }
 }
 
 locals {
-    base_content = templatefile("${path.module}/templates/base.tftpl")
-    language_content = templatefile("${path.module}/templates/${var.language}.tftpl")
-    dockerignore_content = "${local.base_content}\n${local.language_content}"
+  base_content         = templatefile("${path.module}/templates/base.tftpl", {})
+  language_content     = templatefile("${path.module}/templates/${var.language}.tftpl", {})
+  dockerignore_content = "${local.base_content}\n${local.language_content}"
 }
 
 resource "local_file" "dockerignore" {

@@ -1,3 +1,5 @@
+import shutil
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +27,9 @@ class Block:
     @property
     def requires_auth(self) -> bool:
         return self.contract.config_fields("secrets") != []
+    
+    def dump_assets(self, folder: Path) -> None:
+        shutil.copytree(self.folder, folder, dirs_exist_ok=True)
 
     def dump_config(self, full: bool) -> dict[str, str]:
         groups = ["basic"]
