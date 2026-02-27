@@ -16,4 +16,4 @@ __pycache__/
 .pytest_cache/
 .ruff_cache
 .home
-test_projects
+.test_projects
