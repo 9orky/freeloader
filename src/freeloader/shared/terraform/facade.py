@@ -16,11 +16,11 @@ class Terraform:
     def prepare(self, template: Path, variables: dict[str, str | list | dict]) -> None:
         self._resource.prepare(TerraformFile(template), variables)
 
-    def apply(self, *, timeout: int | None = None) -> None:
+    def apply(self, timeout: int | None = None) -> None:
         self._resource.apply(timeout=timeout)
 
     def output(self) -> Union[dict, list]:
         return self._resource.output()
 
-    def destroy(self, *, timeout: int | None = None) -> None:
+    def destroy(self, timeout: int | None = None) -> None:
         self._resource.destroy(timeout=timeout)

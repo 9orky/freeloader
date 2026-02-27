@@ -3,6 +3,6 @@ from pathlib import Path
 from .registry import TechStack
 
 
-def detect(project_dir: Path) -> TechStack | None:
+def detect(project_dir: Path) -> TechStack:
     from .registry import detect_stack
     return detect_stack(Path(project_dir))

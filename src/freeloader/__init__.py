@@ -3,7 +3,7 @@ from pathlib import Path
 import dotenv
 dotenv.load_dotenv()
 
-from .shared import console, cli, io, tech, block, registry
+from .shared import console, cli, io, tech, registry
 from .shared.runtime import Freeloader
 
 
@@ -15,7 +15,7 @@ __all__ = [
     "cli",
     "io",
     "tech",
-    "block",
+
     "registry",
     "runtime",
 ]

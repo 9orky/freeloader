@@ -11,8 +11,9 @@ class PackageManager(Protocol):
 
 @dataclass(frozen=True)
 class TechStack:
-    language: str
-    package_manager: str
+    language: str = "unknown"
+    language_version: str = "unknown"
+    package_manager: str = "unknown"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -27,7 +28,7 @@ class TechDetector(Protocol):
             return False
         return True
 
-    def detect(self, project_dir: Path) -> TechStack | None:
+    def detect(self, project_dir: Path) -> TechStack:
         for pm in self.package_managers:
             matches = [self._file_exists(p, project_dir) for p in pm.patterns]
             if pm.match_all and all(matches):
@@ -35,4 +36,4 @@ class TechDetector(Protocol):
             elif not pm.match_all and any(matches):
                 return TechStack(language=self.language, package_manager=pm.name)
         
-        return None
+        return TechStack()

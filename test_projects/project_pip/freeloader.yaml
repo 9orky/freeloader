@@ -1,19 +1,25 @@
 project:
   name: project_pip
   description: ''
+stack:
+  language: unknown
+  language_version: unknown
+  package_manager: unknown
 blocks:
-  - use: gitlab.registry
+  - use: docker.dockerfile
     config:
-      visibility: private
+      language: python
+      package_manager: pip
+      server: nginx
+  - use: docker.dockerignore
+    config:
+      language: python
   - use: github.actions_ci
     config:
       language: node
       package_manager: npm
       language_version: ''
       test_command: npm test
-  - use: github.repo
-    config:
-      org: ''
   - use: git.gitignore
     config:
       language: python
