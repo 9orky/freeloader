@@ -2,7 +2,7 @@ import json
 import re
 import tomllib
 from pathlib import Path
-from typing import Iterable, Protocol
+from typing import Iterable, Literal, Protocol
 
 
 class PackageFileReader(Protocol):
@@ -33,6 +33,7 @@ class DefaultPackageFileReader:
 class PackageManager(Protocol):
     name: str
     patterns: list[str]
+    command_templates: dict[Literal["init", "install", "update", "add", "remove"], str]
     match_all: bool = True
     manager_filename: str | None = None
     package_pattern_template: str | None = None

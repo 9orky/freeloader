@@ -14,12 +14,10 @@ def project_group():
 # @console.handle_cli_error
 def detect():
     tech_stack = usecases.detect_stack(runtime.cwd)
-    if not tech_stack:
-        console.warn("Could not detect technology stack for this project.")
-        return
+    if tech_stack:
+        return console.print_dict(tech_stack)
+    console.warn("Could not detect technology stack for this project.")
     
-    console.print_dict(tech_stack)
-
 
 @project_group.command()
 @click.option("--full-manifest", is_flag=True, help="Include advanced configuration fields in the manifest")

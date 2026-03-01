@@ -19,16 +19,37 @@ class Pip(PipfileBased):
     name = "pip"
     patterns = ["requirements*.txt", "Pipfile"]
     language_version_pattern = r'(?<=")(python)(?=[>=<~!]|")'
+    command_templates = {
+        "init": "pip freeze > requirements.txt",
+        "install": "pip install -r requirements.txt",
+        "update": "pip install --upgrade -r requirements.txt",
+        "add": "pip install {package} && pip freeze > requirements.txt",
+        "remove": "pip uninstall {package} && pip freeze > requirements.txt",
+    }
 
 
 class Uv(PyProjectBased):
     name = "uv"
     patterns = ["pyproject.toml", "uv.lock"]
+    command_templates = {
+        "init": "uv init",
+        "install": "uv install",
+        "update": "uv update",
+        "add": "uv add {package}",
+        "remove": "uv remove {package}",
+    }
 
 
 class Poetry(PyProjectBased):
     name = "poetry"
     patterns = ["pyproject.toml", "poetry.lock"]
+    command_templates = {
+        "init": "poetry init -n",
+        "install": "poetry install",
+        "update": "poetry update",
+        "add": "poetry add {package}",
+        "remove": "poetry remove {package}",
+    }
 
 
 class Django(Framework):

@@ -13,16 +13,37 @@ class PackageJsonBased(PackageManager):
 class Npm(PackageJsonBased):
     name = "npm"
     patterns = ["package.json"]
+    command_templates = {
+        "init": "npm init -y",
+        "install": "npm install",
+        "update": "npm update",
+        "add": "npm install {package}",
+        "remove": "npm uninstall {package}",
+    }
 
 
 class Yarn(PackageJsonBased):
     name = "yarn"
     patterns = ["package.json", "yarn.lock"]
+    command_templates = {
+        "init": "yarn init -y",
+        "install": "yarn install",
+        "update": "yarn upgrade",
+        "add": "yarn add {package}",
+        "remove": "yarn remove {package}",
+    }
 
 
 class Pnpm(PackageJsonBased):
     name = "pnpm"
     patterns = ["package.json", "pnpm-lock.yaml"]
+    command_templates = {
+        "init": "pnpm init -y",
+        "install": "pnpm install",
+        "update": "pnpm update",
+        "add": "pnpm add {package}",
+        "remove": "pnpm remove {package}",
+    }
 
 
 class Astro(Framework):

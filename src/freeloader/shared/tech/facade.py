@@ -8,7 +8,7 @@ class TechFacade:
         self._detectors: dict[str, TechDetector] = load_detectors()
 
     def detect_stack(self, project_dir) -> dict:
-        for name, detector in self._detectors.items():
+        for detector in self._detectors.values():
             result = detector.detect(project_dir)
             if result:
                 return result.to_dict()
