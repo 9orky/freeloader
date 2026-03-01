@@ -1,17 +1,18 @@
 from pathlib import Path
 
-from freeloader import tech
+from freeloader.shared.tech import TechFacade
 
 from ..adapters import BlocksAdapter
 
 from .user import UserProject
 
 
-def manage_project(name: str, project_folder: Path, full_manifest: bool = False) -> None:
+def manage_project(name: str, project_folder: Path, full_manifest: bool = False) -> dict:
     user_project = UserProject(name, project_folder)
     assert user_project.no_manifest(), "Manifest already exists"
 
-    tech_stack = tech.detect(user_project.folder)
+    tech_stack = TechFacade().detect_stack(project_folder)
     blocks_configs = BlocksAdapter(project_folder).get_manifest_configs(full_manifest)
 
-    user_project.save_manifest(tech_stack.to_dict(), blocks_configs)
+    user_project.save_manifest(tech_stack, blocks_configs)
+    return {"tech_stack": tech_stack, "blocks_configs": blocks_configs}

@@ -23,13 +23,13 @@ def detect():
 @click.option("--full-manifest", is_flag=True, help="Include advanced configuration fields in the manifest")
 # @console.handle_cli_error
 def manage(full_manifest: bool):
-    usecases.manage_project(
+    report = usecases.manage_project(
         runtime.cwd.name,
         runtime.cwd,
         full_manifest,
     )
-
-    console.ok(f"Project is now managed by Freeloader.")
+    
+    console.print_dict(report)
 
 
 @project_group.command()
