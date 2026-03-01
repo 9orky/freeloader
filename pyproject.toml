@@ -47,3 +47,11 @@ target-version = "py312"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.uv.workspace]
+members = [
+    ".test_projects/python/uv/django",
+    ".test_projects/python/uv/django_project",
+    ".test_projects/python/uv/flask_project",
+    ".test_projects/python/uv/fastapi_project",
+]

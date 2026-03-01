@@ -38,7 +38,7 @@ class Pnpm(PackageJsonBased):
     name = "pnpm"
     patterns = ["package.json", "pnpm-lock.yaml"]
     command_templates = {
-        "init": "pnpm init -y",
+        "init": "pnpm init",
         "install": "pnpm install",
         "update": "pnpm update",
         "add": "pnpm add {package}",

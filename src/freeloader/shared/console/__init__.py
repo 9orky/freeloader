@@ -1,5 +1,6 @@
 import functools
 
+from rich.tree import Tree
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -24,12 +25,29 @@ def error(message: str) -> None:
     _err_console.print(f"✗ {message}", style="red")
 
 
-def print_dict(data: dict, title: str = "") -> None:
+def print_dict(data: dict, title: str = "", as_tree: bool = True) -> None:
     if title:
         _console.print(f"[bold]{title}[/bold]")
 
-    for key, value in data.items():
-        _console.print(f"[bold]{key}:[/bold] {value}")
+    if as_tree:
+        tree = Tree(title)
+        dict_to_tree(data, tree)
+        _console.print(tree)
+    else:
+        for key, value in data.items():
+            _console.print(f"[bold]{key}:[/bold] {value}")
+
+
+def dict_to_tree(data: dict | list | str, tree: Tree):
+    if isinstance(data, dict):
+        for key, value in data.items():
+            branch = tree.add(f"[bold cyan]{key}[/bold cyan]")
+            dict_to_tree(value, branch)
+    elif isinstance(data, list):
+        for item in data:
+            dict_to_tree(item, tree)
+    else:
+        tree.add(f"[green]{data}[/green]")
 
 
 def print_table(title: str, headers: list[str], rows: list[list]) -> None:

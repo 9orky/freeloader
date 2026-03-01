@@ -53,3 +53,10 @@ def reset():
     usecases.manage_project(runtime.cwd.name, runtime.cwd, full_manifest=False)
     usecases.provision(runtime.cwd)
     console.ok(f"Project '{runtime.cwd.name}' has been reset successfully.")
+
+
+@project_group.command()
+# @console.handle_cli_error
+def test():
+    graph = usecases.build_test_projects()
+    console.print_dict(graph)
