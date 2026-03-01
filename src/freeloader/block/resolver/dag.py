@@ -1,6 +1,7 @@
 from ..contract import BlockContract
 
 from .base import BlockRef, ResolvedBlock
+from .error import AmbiguousProvider, MissingRequirement
 from .mapper import ProvidesMapper
 from .sorter import TopologicalSorter
 

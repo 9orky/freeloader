@@ -12,7 +12,7 @@ def provision(cwd: Path):
     block_refs = manifest.blocks
     blocks_adapter = BlocksAdapter(cwd)
 
-    blocks_adapter.provision(
+    blocks_adapter.provision_project(
         user_project.resources_folder,
         block_refs,
     )

@@ -1,9 +1,31 @@
 from pathlib import Path
 from typing import Any
 
-from ..base import SecretsReader
-from ..context import ExecutionContext
-from ..resolver import ResolvedBlock
+from freeloader.shared.terraform import TerraformResource
+
+from .base import SecretsReader
+from .context import ExecutionContext
+from .resolver import ResolvedBlock
+from .provision import ProvisioningResource
+
+
+class BlockRunner:
+    def __init__(self, project_path: Path, secrets: SecretsReader) -> None:
+        self._variables_builder = VariablesBuilder(project_path, secrets)
+
+    def run_init(self, resource: ProvisioningResource, block: ResolvedBlock, context: ExecutionContext) -> None:
+        tfvars = self._variables_builder.build(block, context)
+        TerraformResource(resource.folder).init(tfvars)
+
+    def run_plan(self, resource: ProvisioningResource) -> None:
+        TerraformResource(resource.folder).plan()
+
+    def run_apply(self, resource: ProvisioningResource) -> dict | list:
+        TerraformResource(resource.folder).apply()
+        return TerraformResource(resource.folder).output()
+
+    def run_destroy(self, resource: ProvisioningResource) -> None:
+        TerraformResource(resource.folder).destroy()
 
 
 class VariablesBuilder:

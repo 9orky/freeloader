@@ -1,4 +1,4 @@
-from ..secrets import has_secrets
+from ..secrets import Secrets
 
 from .registry import load_all_providers, load_provider
 from .base import Credentials
@@ -29,10 +29,11 @@ class ServiceProviders:
 
     def load_available(self, language: str | None = None, package_manager: str | None = None) -> list[str]:
         tech_stack_provided = all([language, package_manager])
+        secrets = Secrets.for_default_namespace()
         
         names = []
         for name, provider in load_all_providers().items():
-            if provider.requires_auth and not has_secrets(provider.auth_keys):
+            if provider.requires_auth and not secrets.has_secrets(provider.auth_keys):
                 continue
             if provider.requires_tech_stack and not tech_stack_provided:
                 continue

@@ -1,6 +1,5 @@
 from pathlib import Path
-from typing import Any
-import json
+from shutil import rmtree
 
 from ..infrastructure.block import Block
 
@@ -10,6 +9,11 @@ class ProvisioningResource:
         folder.mkdir(parents=True, exist_ok=True)
         self._folder = folder
 
+    @classmethod
+    def from_block(cls, resources_root: Path, block: Block) -> "ProvisioningResource":
+        resource_folder = resources_root / block.id
+        return cls(resource_folder)
+
     @property
     def folder(self) -> Path:
         return self._folder
@@ -17,11 +21,6 @@ class ProvisioningResource:
     def dump_block(self, block: Block)-> None:
         block.dump_assets(self._folder)
 
-    # def dump_terraform_file(self, terraform_template: Path) -> None:
-    #     terraform_template_dest = self._folder / "main.tf"
-    #     terraform_template_dest.write_text(terraform_template.read_text())
-
-    def dump_variables(self, variables: dict[str, Any]) -> None:
-        variables_dest = self._folder / "variables.tfvars.json"
-        tf_vars = json.dumps(variables, indent=2)
-        variables_dest.write_text(tf_vars)
+    def rm(self) -> None:
+        if self._folder.is_dir():
+            rmtree(self._folder)

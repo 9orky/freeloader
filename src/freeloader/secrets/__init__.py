@@ -1,9 +1,7 @@
 from .ports.cli import secrets_group
-from .ports.interface import read_secrets, write_secret, has_secrets
+from .ports.interface import Secrets
 
 __all__ = [
     "secrets_group",
-    "read_secrets", 
-    "write_secret", 
-    "has_secrets",
+    "Secrets", 
 ]

@@ -1,9 +1,9 @@
-from .facade import Blocks
+from .facade import BlocksFacade
 from .base import SecretsReader
 from .resolver.dag import BlockRef
 
 __all__ = [
-    "Blocks",
+    "BlocksFacade",
     "BlockRef",
     "SecretsReader",
 ]

@@ -1,8 +1,3 @@
-from pathlib import Path
+from .facade import TechFacade
 
-from .registry import TechStack
-
-
-def detect(project_dir: Path) -> TechStack:
-    from .registry import detect_stack
-    return detect_stack(Path(project_dir))
+__all__ = ["TechFacade"]

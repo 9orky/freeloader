@@ -24,6 +24,14 @@ def error(message: str) -> None:
     _err_console.print(f"✗ {message}", style="red")
 
 
+def print_dict(data: dict, title: str = "") -> None:
+    if title:
+        _console.print(f"[bold]{title}[/bold]")
+
+    for key, value in data.items():
+        _console.print(f"[bold]{key}:[/bold] {value}")
+
+
 def print_table(title: str, headers: list[str], rows: list[list]) -> None:
     table = Table(title=title, show_header=True, header_style="bold")
     for header in headers:

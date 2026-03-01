@@ -1,22 +1,26 @@
+from dataclasses import dataclass
 import os
 from pathlib import Path
 
-from freeloader.block import Blocks, SecretsReader
-from freeloader.secrets import read_secrets, has_secrets
+from freeloader.block import BlocksFacade, SecretsReader, BlockRef
+from freeloader.secrets import Secrets
 
 
+@dataclass(frozen=True)
 class SecretsAdapter(SecretsReader):
+    secrets: Secrets = Secrets.for_default_namespace()
+
     def has_secrets(self, secret_names: list[str]) -> bool:
-        return has_secrets(secret_names, "global")  
+        return self.secrets.has_secrets(secret_names)
 
     def read(self, secret_names: list[str]) -> dict[str, str]:
-        return read_secrets("global", secret_names)
+        return self.secrets.read_secrets(secret_names)
 
 
 class BlocksAdapter:
-    def __init__(self, project_root: Path, root: Path | None = None) -> None:
-        self._root = root or self._get_blocks_root()
-        self._blocks = Blocks(project_root, self._root, SecretsAdapter())
+    def __init__(self, project_root: Path, blocks_root: Path | None = None) -> None:
+        blocks_root = blocks_root or self._get_blocks_root()
+        self._blocks_facade = BlocksFacade(project_root, blocks_root, SecretsAdapter())
 
     def _get_blocks_root(self) -> Path:
         blocks_root = os.getenv("FREELOADER_BLOCKS", None)
@@ -28,7 +32,10 @@ class BlocksAdapter:
         return blocks_root_path
 
     def get_manifest_configs(self, full_config: bool) -> dict[str, dict[str, str]]:
-        return self._blocks.get_manifest_configs(full_config)
-    
-    def provision(self, resources_root: Path,  block_refs: list[BlockRef]) -> None:
-        self._blocks.provision_resources(resources_root, block_refs)
+        return self._blocks_facade.get_manifest_configs(full_config)
+
+    def provision_project(self, resources_root: Path,  block_refs: list[BlockRef]) -> None:
+        self._blocks_facade.provision(resources_root, block_refs)
+
+    def destroy_project(self, resources_root: Path,  block_refs: list[BlockRef]) -> None:
+        self._blocks_facade.destroy(resources_root, block_refs)
