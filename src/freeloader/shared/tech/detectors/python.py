@@ -6,7 +6,7 @@ from ..registry import tech_detector
 
 
 class PyProjectBased(PackageManager):
-    package_pattern_template = r'^[ \t]*["\']?{package}(?![a-zA-Z0-9_-])["\']?(?:[ \t]*[>=<~!]|[ \t]*=|[ \t]*["\']|[ \t]*[,\]]|$)'
+    package_pattern_template = r'^[ \t]*["\']?{package}(?![a-zA-Z0-9_-])["\']?(?:[ \t]*[>=<~!]|[ \t]*=|[ \t]*["\']|[ \t]*[,\]]|[ \t]*\(|$)'
     language_version_pattern = r'(?:\bpython\b|requires-python)\s*=\s*["\'](?:[>=<^~!\s]*)([\d\.]+)'
 
 
@@ -30,7 +30,7 @@ class Pip(PipfileBased):
 
 class Uv(PyProjectBased):
     name = "uv"
-    patterns = ["pyproject.toml", "uv.lock"]
+    patterns = ["pyproject.toml"]
     command_templates = {
         "init": "uv init",
         "install": "uv install",
@@ -76,6 +76,6 @@ class UserConsolePythonVersion(LocalhostCommandLineSource):
 @tech_detector(name="python")
 class PythonDetector(TechDetector):
     language = "python"
-    package_managers = [Pip, Uv, Poetry]
+    package_managers = [Pip, Poetry, Uv]
     language_sources = [PythonVersionFile, UserConsolePythonVersion]
     frameworks = [Django, Flask, FastAPI]
