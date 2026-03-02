@@ -23,7 +23,6 @@ class BlocksFacade:
         for block_id, block in self._loader.all_blocks.items():
             required_secrets = block.contract.required_secret_keys
             if required_secrets and not self._secrets.has_secrets(required_secrets):
-                # print(f"Warning: Block '{block_id}' requires secrets {required_secrets}, skipping")
                 continue
 
             config = block.dump_config(full_config)
