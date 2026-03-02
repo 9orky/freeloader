@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from freeloader.block import BlocksFacade, SecretsReader, BlockRef
+from freeloader.shared.types import ConfigValue
 from freeloader.secrets import Secrets
 
 
@@ -20,7 +21,8 @@ class SecretsAdapter(SecretsReader):
 class BlocksAdapter:
     def __init__(self, project_root: Path, blocks_root: Path | None = None) -> None:
         blocks_root = blocks_root or self._get_blocks_root()
-        self._blocks_facade = BlocksFacade(project_root, blocks_root, SecretsAdapter())
+        self._blocks_facade = BlocksFacade(
+            project_root, blocks_root, SecretsAdapter())
 
     def _get_blocks_root(self) -> Path:
         blocks_root = os.getenv("FREELOADER_BLOCKS", None)
@@ -31,8 +33,8 @@ class BlocksAdapter:
 
         return blocks_root_path
 
-    def get_manifest_configs(self, full_config: bool) -> dict[str, dict[str, str]]:
-        return self._blocks_facade.get_manifest_configs(full_config)
+    def get_manifest_configs(self, tech_stack: dict[str, str], full_config: bool, project_name: str | None = None) -> dict[str, dict[str, ConfigValue]]:
+        return self._blocks_facade.get_manifest_configs(tech_stack, full_config, project_name)
 
     def provision_project(self, resources_root: Path,  block_refs: list[BlockRef]) -> None:
         self._blocks_facade.provision(resources_root, block_refs)

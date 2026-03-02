@@ -1,6 +1,7 @@
 block:
   description: Generates a GitHub Actions CI/CD workflow file in the project directory.
   layer: build
+  required_tech_stack: true
 
 provides: {}
 

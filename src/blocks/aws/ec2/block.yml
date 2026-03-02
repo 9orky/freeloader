@@ -19,6 +19,7 @@ config:
     - name: name
       description: Name tag for the EC2 instance.
       required: true
+      project_name_default: true
 
   advanced:
     - name: instance_type

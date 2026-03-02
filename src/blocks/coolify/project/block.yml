@@ -15,6 +15,7 @@ config:
     - name: name
       description: Coolify project name.
       required: true
+      project_name_default: true
 
   advanced:
     - name: description

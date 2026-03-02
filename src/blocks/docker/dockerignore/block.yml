@@ -1,6 +1,7 @@
 block:
   description: Generates a .dockerignore file in the project directory.
   layer: source
+  required_tech_stack: true
 
 provides: {}
 

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Any
 
 from pydantic import BaseModel, computed_field
+
+from freeloader.shared.types import ConfigValue
 
 from ..contract import BlockContract
 
@@ -9,7 +10,7 @@ from ..contract import BlockContract
 class BlockRef(BaseModel):
     use: str
     id: str | None = None
-    config: dict[str, Any] = {}
+    config: dict[str, ConfigValue | None] = {}
 
     @computed_field
     @property

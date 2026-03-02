@@ -20,6 +20,7 @@ config:
     - name: name
       description: Service name.
       required: true
+      project_name_default: true
     - name: domain
       description: Custom domain for the service.
       default: ""

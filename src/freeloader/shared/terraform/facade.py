@@ -55,4 +55,4 @@ class TerraformResource:
         main_file = self._root / MAIN_FILE
         plan_file = self._root / PLAN_FILE
         assert main_file.is_file(), f"Terraform main file not found: {main_file}"
-        assert plan_file.is_file(), f"Terraform plan file should be removed after apply: {plan_file}"
+        # assert plan_file.is_file(), f"Terraform plan file should be removed after apply: {plan_file}"

@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 
+from freeloader.shared.types import ConfigValue
+
 
 @dataclass(frozen=True)
 class TerraformVariable:
     name: str
     type: str
-    default: str | int | float | bool | list[str] | None
+    default: ConfigValue | None
     description: str
     sensitive: bool
     required: bool

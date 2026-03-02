@@ -3,6 +3,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from freeloader.shared.types import ConfigValue
+
 from ..base import BlockId
 from ..contract import BlockContract
 
@@ -27,16 +29,16 @@ class Block:
     @property
     def requires_auth(self) -> bool:
         return self.contract.config_fields("secrets") != []
-    
+
     def dump_assets(self, folder: Path) -> None:
         shutil.copytree(self.folder, folder, dirs_exist_ok=True)
 
-    def dump_config(self, full: bool) -> dict[str, str]:
+    def dump_config(self, full: bool, project_name: str | None = None) -> dict[str, ConfigValue]:
         groups = ["basic"]
         if full:
             groups.append("advanced")
 
-        return self.contract.collect_defaults(groups)
+        return self.contract.collect_defaults(groups, project_name)
 
     @classmethod
     def from_folder(cls, folder: Path) -> "Block":

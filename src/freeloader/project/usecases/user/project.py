@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
-from typing import Any
+
+from freeloader.shared.types import ConfigValue
 
 from .manifest import ProjectManifest
 
@@ -13,7 +14,8 @@ class UserProject:
 
     @classmethod
     def from_path(cls, folder: Path) -> "UserProject":
-        assert ProjectManifest.exists(folder), f"No project manifest found in {folder}"
+        assert ProjectManifest.exists(
+            folder), f"No project manifest found in {folder}"
         return cls(name=folder.name, folder=folder)
 
     @property
@@ -23,11 +25,11 @@ class UserProject:
     @property
     def folder(self) -> Path:
         return self._folder
-    
+
     @property
     def resources_folder(self) -> Path:
         return self._folder / ".freeloader"
-    
+
     @property
     def manifest(self) -> ProjectManifest:
         return ProjectManifest.load(self._folder)
@@ -35,7 +37,7 @@ class UserProject:
     def no_manifest(self) -> bool:
         return not ProjectManifest.exists(self._folder)
 
-    def save_manifest(self, stack: dict[str, Any], block_configs: dict[str, Any]) -> None:
+    def save_manifest(self, stack: dict[str, str], block_configs: dict[str, dict[str, ConfigValue]]) -> None:
         resources_dir = self._folder / ".freeloader"
         resources_dir.mkdir(exist_ok=True)
         ProjectManifest.create(self._name, self._folder, stack, block_configs)

@@ -32,6 +32,7 @@ config:
     - name: name
       description: Repository name.
       required: true
+      project_name_default: true
     - name: org
       description: GitHub organisation or user namespace to create the repository under.
       default: ""

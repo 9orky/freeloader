@@ -19,6 +19,7 @@ config:
     - name: name
       description: Application name.
       required: true
+      project_name_default: true
     - name: domain
       description: Custom domain for the application.
       default: ""
