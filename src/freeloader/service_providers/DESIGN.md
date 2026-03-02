@@ -1,240 +1,324 @@
-# Obtain Token — Architecture Design
+# Costs Module — Architecture Design
 
-## Concept
+## Overview
 
-Before prompting for credentials, run provider-specific guidance steps so users know how to obtain their tokens. Each provider declaratively defines a list of steps. The CLI iterates them sequentially, accumulating a **context dict** that flows from step to step. Steps can collect user input and later steps can interpolate collected values via `{KEY}` placeholders. No framework — just a frozen dataclass, a list, and a dict.
+Costs awareness across two axes:
 
-## Approach
+1. **Static** — block-level cost metadata declared in `block.yml` (tier, free-tier limits, estimates).
+2. **Dynamic** — provider-level billing fetched via API (current spend, free-tier usage).
 
-Plugin into the existing `ServiceProviderProtocol` — add one property: `obtain_token_steps`.
-
----
-
-## Changes to `base.py`
-
-```python
-@dataclass(frozen=True)
-class ObtainTokenStep:
-    action: str  # "info" | "open_url" | "input"
-    value: str
-
-
-class ServiceProviderProtocol(Protocol):
-    auth_keys: list[str]
-    requires_auth: bool
-    requires_tech_stack: bool = False
-    obtain_token_steps: list[ObtainTokenStep] = []
-
-
-class ServiceProvider(abc.ABC, ServiceProviderProtocol):
-    obtain_token_steps: list[ObtainTokenStep] = []
-
-    @abc.abstractmethod
-    def check_credentials(self, credentials: Credentials): ...
-
-    def check_installation(self) -> None: ...
-```
-
-New actions are added by extending the `action` literal — no new classes needed.
-
-Supported actions:
-
-| Action      | Behavior                                                                 |
-|-------------|--------------------------------------------------------------------------|
-| `info`      | Resolve `{KEY}` placeholders from context, print via `console.info`      |
-| `open_url`  | Resolve `{KEY}` placeholders from context, print clickable URL           |
-| `input`     | Prompt user for value; `value` is the key name (e.g. `COOLIFY_ENDPOINT`); result stored in context under that key |
-
-### Context flow
-
-Steps execute sequentially. A `dict[str, str]` context accumulates across steps:
-
-1. `input` steps **write** to context — `context[step.value] = <user input>`.
-2. `info` and `open_url` steps **read** from context — `step.value.format(**context)`.
-3. After all steps, context is returned and **merged into credentials**, so `auth_keys` already collected via `input` are not re-prompted.
+Billing is strictly separated from auth. Each supporting provider gets its own `billing.py` next to `provider.py`. A single `costs.py` in `service_providers/` orchestrates lookups.
 
 ---
 
-## Provider Examples
+## Package Tree
 
-### coolify/provider.py
-
-```python
-@providers.register("coolify")
-class Coolify(ServiceProvider):
-    auth_keys = ["COOLIFY_TOKEN", "COOLIFY_ENDPOINT"]
-    requires_auth = True
-    obtain_token_steps = [
-        ObtainTokenStep("input", "COOLIFY_ENDPOINT"),
-        ObtainTokenStep("info", "Generate an API token from your Coolify dashboard."),
-        ObtainTokenStep("open_url", "{COOLIFY_ENDPOINT}/settings/api-tokens"),
-    ]
-    ...
+```
+service_providers/
+  base.py              # ServiceProvider ABC (unchanged)
+  costs.py             # BillingAdapter ABC, BillingCheckCost, BillingReport models,
+                       #   orchestrator: supports_billing(), get_billing_check_cost(), fetch_billing()
+  registry.py          # unchanged
+  facade.py            # unchanged
+  obtain.py            # unchanged
+  aws/
+    provider.py        # ServiceProvider (auth only — unchanged)
+    billing.py         # AWSBilling(BillingAdapter)
+  github/
+    provider.py        # unchanged
+    billing.py         # GitHubBilling(BillingAdapter)
+  gitlab/
+    provider.py        # unchanged
+    billing.py         # GitLabBilling(BillingAdapter)
+  coolify/
+    provider.py        # unchanged (no billing.py — self-hosted)
+  docker/
+    provider.py        # unchanged (no billing.py — local tool)
+  git/
+    provider.py        # unchanged (no billing.py — local tool)
 ```
 
-Flow: prompt for endpoint → show info → show URL with endpoint interpolated → prompt only for `COOLIFY_TOKEN` (endpoint already collected).
+Changed modules:
 
-### aws/provider.py
+| Module | Change |
+|---|---|
+| `block/contract.py` | Add `BlockCostSpec` model, add `costs` field to `BlockContract` |
+| `service_providers/costs.py` | New — `BillingAdapter` ABC, billing models, orchestrator functions |
+| `service_providers/aws/billing.py` | New — `AWSBilling(BillingAdapter)` |
+| `service_providers/github/billing.py` | New — `GitHubBilling(BillingAdapter)` |
+| `service_providers/gitlab/billing.py` | New — `GitLabBilling(BillingAdapter)` |
+
+---
+
+## Block Contract Extension
+
+### `block.yml` schema addition
+
+```yaml
+costs:
+  tier: always_free | free_tier | paid
+  free_tier_limits:
+    - metric: compute_hours
+      amount: 750
+      period: monthly
+  estimated_monthly_usd: "0.00"
+  note: "Free for 12 months after AWS account creation"
+```
+
+All fields optional except `tier`. Blocks without a `costs` key default to `tier: paid` (safe default — forces explicit opt-in to free).
+
+### Examples per existing block
+
+| Block | Tier | Note |
+|---|---|---|
+| `git.gitignore` | `always_free` | Local tool |
+| `git.local_repo` | `always_free` | Local tool |
+| `docker.dockerfile` | `always_free` | Local file generation |
+| `docker.dockerignore` | `always_free` | Local file generation |
+| `github.remote_repo` | `free_tier` | Free for public repos, limits on private |
+| `github.actions_ci` | `free_tier` | 2000 min/month on free plan |
+| `gitlab.registry` | `free_tier` | 5 GB registry storage on free plan |
+| `aws.ec2` | `free_tier` | 750 hrs/month t2/t3.micro for 12 months |
+| `coolify.project` | `always_free` | Self-hosted, no provider charge |
+| `coolify.app` | `always_free` | Self-hosted |
+| `coolify.service` | `always_free` | Self-hosted |
+
+---
+
+## `block/contract.py` — Cost Spec (static metadata)
+
+```python
+class CostTier(str, Enum):
+    always_free = "always_free"
+    free_tier = "free_tier"
+    paid = "paid"
+
+
+class FreeTierLimit(BaseModel):
+    metric: str
+    amount: float
+    period: str
+
+
+class BlockCostSpec(BaseModel):
+    tier: CostTier = CostTier.paid
+    free_tier_limits: list[FreeTierLimit] = []
+    estimated_monthly_usd: str = ""
+    note: str = ""
+
+
+class BlockContract(BaseModel):
+    block: BlockMeta
+    provides: dict[str, PortSpec] = {}
+    requires: dict[str, PortSpec] = {}
+    config: list[ConfigField] = []
+    costs: BlockCostSpec = BlockCostSpec()
+```
+
+Block-level cost types live in `block/contract.py` (upstream of `service_providers`). No circular dependency — `costs.py` never imports from `block/`.
+
+---
+
+## `service_providers/costs.py` — Billing (dynamic data)
+
+Single flat module. Owns all billing-specific types and the `BillingAdapter` ABC. Completely independent of `base.py` / `ServiceProvider` — billing never touches auth.
+
+### Models
+
+```python
+from enum import Enum
+from abc import ABC, abstractmethod
+from pydantic import BaseModel
+
+from .base import Credentials
+
+
+class BillingCheckCost(str, Enum):
+    free = "free"
+    paid = "paid"
+
+
+class BillingLineItem(BaseModel):
+    service: str
+    amount_usd: float
+    currency: str = "USD"
+
+
+class FreeTierUsage(BaseModel):
+    service: str
+    metric: str
+    used: float
+    limit: float
+    unit: str
+
+
+class BillingReport(BaseModel):
+    provider: str
+    total_usd: float
+    currency: str = "USD"
+    period: str
+    items: list[BillingLineItem] = []
+    free_tier_usage: list[FreeTierUsage] = []
+```
+
+### `BillingAdapter` ABC
+
+```python
+class BillingAdapter(ABC):
+    billing_check_cost: BillingCheckCost
+
+    @abstractmethod
+    def fetch_billing(self, credentials: Credentials) -> BillingReport: ...
+```
+
+Completely separate from `ServiceProvider`. A provider that supports billing has a `billing.py` with a class extending `BillingAdapter` — it never subclasses or mixes into `ServiceProvider`.
+
+### Billing registry + orchestrator functions
+
+```python
+billing_adapters = LazyRegistry[BillingAdapter]("BillingAdapterRegistry")
+
+
+def supports_billing(provider_name: str) -> bool: ...
+
+def get_billing_check_cost(provider_name: str) -> BillingCheckCost: ...
+
+def fetch_billing(provider_name: str, credentials: Credentials) -> BillingReport: ...
+```
+
+Each provider's `billing.py` registers itself via `@billing_adapters.register("aws")`, mirroring how `provider.py` uses `@providers.register("aws")`.
+
+---
+
+## Provider billing support matrix
+
+| Provider | Has `billing.py` | `billing_check_cost` | API |
+|---|---|---|---|
+| `aws` | Yes | `paid` | Cost Explorer ($0.01/request) |
+| `github` | Yes | `free` | Billing API |
+| `gitlab` | Yes | `free` | Namespace storage / usage API |
+| `coolify` | No | — | Self-hosted, no billing concept |
+| `docker` | No | — | Local tool |
+| `git` | No | — | Local tool |
+| `gcp` | Yes (future) | `free` | Cloud Billing API |
+| `hetzner` | Yes (future) | `free` | Billing API |
+| `vercel` | Yes (future) | `free` | Usage API |
+
+---
+
+## Per-Provider `billing.py` Signatures
+
+### `aws/billing.py`
+
+```python
+from ..costs import BillingAdapter, BillingCheckCost, BillingReport, billing_adapters
+from ..base import Credentials
+
+
+@billing_adapters.register("aws")
+class AWSBilling(BillingAdapter):
+    billing_check_cost = BillingCheckCost.paid
+
+    def fetch_billing(self, credentials: Credentials) -> BillingReport: ...
+```
+
+Uses `boto3` Cost Explorer `get_cost_and_usage` for current month spend. Returns `BillingReport` with line items per service and free-tier usage where available.
+
+### `github/billing.py`
+
+```python
+from ..costs import BillingAdapter, BillingCheckCost, BillingReport, billing_adapters
+from ..base import Credentials
+
+
+@billing_adapters.register("github")
+class GitHubBilling(BillingAdapter):
+    billing_check_cost = BillingCheckCost.free
+
+    def fetch_billing(self, credentials: Credentials) -> BillingReport: ...
+```
+
+Uses `PyGithub` billing endpoints for Actions minutes and storage usage.
+
+### `gitlab/billing.py`
+
+```python
+from ..costs import BillingAdapter, BillingCheckCost, BillingReport, billing_adapters
+from ..base import Credentials
+
+
+@billing_adapters.register("gitlab")
+class GitLabBilling(BillingAdapter):
+    billing_check_cost = BillingCheckCost.free
+
+    def fetch_billing(self, credentials: Credentials) -> BillingReport: ...
+```
+
+Uses `python-gitlab` namespace usage and storage quota APIs.
+
+---
+
+## Dependency Direction
+
+```
+block/contract.py  ←  defines CostTier, FreeTierLimit, BlockCostSpec (static block metadata)
+
+service_providers/costs.py  ←  defines BillingAdapter ABC, BillingCheckCost,
+                                BillingReport, BillingLineItem, FreeTierUsage
+                                + billing_adapters registry + orchestrator functions
+                                imports only: base.Credentials
+      ↑
+service_providers/{provider}/billing.py  ←  implements BillingAdapter
+                                            imports only: costs.py, base.Credentials
+```
+
+No cross-dependency between `billing.py` and `provider.py`. They share the provider directory but import from different parents (`costs.py` vs `base.py`). Auth and billing are fully decoupled.
+
+---
+
+## CLI Integration
+
+Costs surfaces in two places:
+
+### 1. Block provisioning — automatic cost display
+
+During `fl project provision` or block selection, always show cost tier and free-tier limits for each selected block. No API call needed — static metadata from `block.yml`.
+
+### 2. Provider billing check — explicit command
+
+```
+fl providers billing <provider_name>
+```
+
+Flow:
+1. Call `supports_billing(provider_name)` — if false, inform user and stop.
+2. Call `get_billing_check_cost(provider_name)` — if `paid`, warn user and confirm.
+3. Load credentials from secrets store.
+4. Call `fetch_billing(provider_name, credentials)` → display `BillingReport`.
+
+---
+
+## Provider Implementation Example — AWS
+
+`aws/provider.py` — auth only, unchanged:
 
 ```python
 @providers.register("aws")
 class AWS(ServiceProvider):
     auth_keys = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
     requires_auth = True
-    obtain_token_steps = [
-        ObtainTokenStep("open_url", "https://console.aws.amazon.com/iam/home#/security_credentials"),
-    ]
-    ...
+
+    def check_credentials(self, credentials: Credentials) -> None: ...
 ```
 
-Flow: show URL → prompt for both keys (no inputs collected, nothing to skip).
-
-### github/provider.py
+`aws/billing.py` — billing only, separate file:
 
 ```python
-@providers.register("github")
-class GitHub(ServiceProvider):
-    auth_keys = ["GITHUB_TOKEN"]
-    requires_auth = True
-    obtain_token_steps = [
-        ObtainTokenStep("info", "Create a Personal Access Token with repo scope."),
-        ObtainTokenStep("open_url", "https://github.com/settings/tokens/new"),
-    ]
-    ...
+@billing_adapters.register("aws")
+class AWSBilling(BillingAdapter):
+    billing_check_cost = BillingCheckCost.paid
+
+    def fetch_billing(self, credentials: Credentials) -> BillingReport: ...
 ```
 
-### gitlab/provider.py
-
-```python
-@providers.register("gitlab")
-class GitLab(ServiceProvider):
-    auth_keys = ["GITLAB_TOKEN"]
-    requires_auth = True
-    obtain_token_steps = [
-        ObtainTokenStep("info", "Create a Personal Access Token with api scope."),
-        ObtainTokenStep("open_url", "https://gitlab.com/-/user_settings/personal_access_tokens"),
-    ]
-    ...
-```
-
-Providers without auth (docker, git) keep the default empty list — no steps shown.
-
----
-
-## Facade — `facade.py`
-
-Expose steps alongside existing provider data:
-
-```python
-def get(self, name: str) -> dict[str, str | bool | list[str] | list[ObtainTokenStep]]:
-    provider = load_provider(name)
-    return {
-        "name": name,
-        "requires_auth": provider.requires_auth,
-        "requires_tech_stack": provider.requires_tech_stack,
-        "auth_keys": provider.auth_keys,
-        "obtain_token_steps": provider.obtain_token_steps,
-    }
-```
-
----
-
-## Auth Feature — `auth/usecases/_model.py`
-
-```python
-@dataclass
-class ObtainTokenStepInfo:
-    action: str
-    value: str
-
-
-@dataclass
-class ProviderInfo:
-    name: str
-    requires_auth: bool
-    requires_tech_stack: bool
-    auth_keys: list[str]
-    obtain_token_steps: list[ObtainTokenStepInfo]
-```
-
-## Auth Feature — `auth/usecases/get_provider.py`
-
-Map `ObtainTokenStep` → `ObtainTokenStepInfo` in the usecase:
-
-```python
-def get_provider(name: str) -> ProviderInfo:
-    provider = service_providers.get(name)
-    return ProviderInfo(
-        name=str(provider["name"]),
-        requires_auth=bool(provider["requires_auth"]),
-        requires_tech_stack=bool(provider["requires_tech_stack"]),
-        auth_keys=list(provider["auth_keys"]),
-        obtain_token_steps=[
-            ObtainTokenStepInfo(action=s.action, value=s.value)
-            for s in provider["obtain_token_steps"]
-        ],
-    )
-```
-
----
-
-## CLI — `auth/ports/cli.py`
-
-Run steps, collect context, merge into credentials, skip already-collected keys:
-
-```python
-def _run_obtain_steps(steps: list) -> dict[str, str]:
-    context: dict[str, str] = {}
-    for step in steps:
-        match step.action:
-            case "input":
-                context[step.value] = typer.prompt(step.value)
-            case "info":
-                console.info(step.value.format(**context))
-            case "open_url":
-                console.info(f"→ {step.value.format(**context)}")
-    return context
-
-
-@auth_group.command()
-@click.argument("name", required=True)
-@console.handle_cli_error
-def provider(name: str):
-    provider = usecases.get_provider(name)
-
-    collected: dict[str, str] = {}
-    if provider.obtain_token_steps:
-        collected = _run_obtain_steps(provider.obtain_token_steps)
-
-    remaining_keys = [k for k in provider.auth_keys if k not in collected]
-    credentials = {**collected, **console.prompter(remaining_keys, True)}
-
-    usecases.auth_provider(name, credentials)
-```
-
-### Coolify example session
-
-```
-$ fl auth provider coolify
-COOLIFY_ENDPOINT: https://coolify.example.com     ← input step
-Generate an API token from your Coolify dashboard. ← info step (resolved)
-→ https://coolify.example.com/settings/api-tokens  ← open_url step (resolved)
-COOLIFY_TOKEN: ****                                ← only remaining auth_key prompted
-✓ Provider coolify authorized.
-```
-
----
-
-## Summary
-
-| What changes            | Where                                 |
-|-------------------------|---------------------------------------|
-| `ObtainTokenStep` added | `service_providers/base.py`           |
-| Protocol gains property | `service_providers/base.py`           |
-| Steps declared          | Each `provider.py` with `requires_auth = True` |
-| Facade exposes steps    | `service_providers/facade.py`         |
-| Model gains field       | `auth/usecases/_model.py`             |
-| Usecase maps steps      | `auth/usecases/get_provider.py`       |
-| CLI runs steps + merges | `auth/ports/cli.py`                   |
-
-No new packages. No new abstractions. Extend by adding new `action` values and a `case` branch.
+`fetch_billing` uses `boto3` Cost Explorer `get_cost_and_usage` for current month spend and `get_cost_forecast` for estimates. Returns `BillingReport` with line items per service and free-tier usage where available.
