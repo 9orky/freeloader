@@ -2,6 +2,7 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from ..base import ServiceProvider, Credentials, ServiceProviderAuthError
+from ..obtain import OpenURL
 from ..registry import providers
 
 
@@ -9,6 +10,9 @@ from ..registry import providers
 class AWS(ServiceProvider):
     auth_keys = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
     requires_auth = True
+    obtain_token_steps = [
+        OpenURL("https://console.aws.amazon.com/iam/home#/security_credentials"),
+    ]
 
     def check_credentials(self, credentials: Credentials) -> None:
         session = boto3.Session(

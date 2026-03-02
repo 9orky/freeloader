@@ -7,22 +7,23 @@ from .base import Credentials
 class ServiceProviders:
     def find_all(self) -> list[dict[str, str | bool | list[str]]]:
         return [{
-            "name": name, 
+            "name": name,
             "requires_auth": provider.requires_auth,
             "requires_tech_stack": provider.requires_tech_stack,
             "auth_keys": provider.auth_keys,
         } for name, provider in load_all_providers().items()]
-    
-    def get(self, name: str) -> dict[str, str | bool | list[str]]:
+
+    def get(self, name: str) -> dict:
         provider = load_provider(name)
-        
+
         return {
             "name": name,
             "requires_auth": provider.requires_auth,
             "requires_tech_stack": provider.requires_tech_stack,
             "auth_keys": provider.auth_keys,
+            "obtain_token_steps": provider.obtain_token_steps,
         }
-    
+
     def authorize_provider(self, name: str, credentials: dict[str, str]) -> None:
         provider = load_provider(name)
         provider.check_credentials(Credentials(kv=credentials))
@@ -30,16 +31,16 @@ class ServiceProviders:
     def load_available(self, language: str | None = None, package_manager: str | None = None) -> list[str]:
         tech_stack_provided = all([language, package_manager])
         secrets = Secrets.for_default_namespace()
-        
+
         names = []
         for name, provider in load_all_providers().items():
             if provider.requires_auth and not secrets.has_secrets(provider.auth_keys):
                 continue
             if provider.requires_tech_stack and not tech_stack_provided:
                 continue
-            
+
             names.append(name)
-        
+
         return names
 
 
