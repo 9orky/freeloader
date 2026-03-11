@@ -2,6 +2,10 @@ block:
   description: Deploys a Docker Compose service on a Coolify server.
   layer: deploy
 
+costs:
+  tier: always_free
+  note: Self-hosted, no provider charge.
+
 provides:
   service_uuid:
     description: Internal UUID of the Coolify service.

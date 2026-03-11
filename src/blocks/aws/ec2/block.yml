@@ -2,6 +2,15 @@ block:
   description: Provisions an AWS EC2 instance with a security group and optional SSH key.
   layer: infra
 
+costs:
+  tier: free_tier
+  free_tier_limits:
+    - metric: compute_hours
+      amount: 750
+      period: monthly
+  estimated_monthly_usd: "0.00"
+  note: Free for 12 months after AWS account creation (t2/t3.micro).
+
 provides:
   ip_address:
     description: Public IP address of the EC2 instance.

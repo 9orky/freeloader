@@ -2,6 +2,10 @@ block:
   description: Creates a GitHub repository with optional branch protection and Actions secrets.
   layer: source
 
+costs:
+  tier: free_tier
+  note: Free for public repos; private repos have limited collaborators on Free plan.
+
 provides:
   repo_name:
     description: Full repository name (org/repo).

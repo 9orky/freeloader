@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, model_validator
@@ -8,6 +9,25 @@ from .layer import Layer
 
 _TECH_STACK_KEYS = frozenset(
     {"language", "language_version", "package_manager", "framework"})
+
+
+class CostTier(str, Enum):
+    always_free = "always_free"
+    free_tier = "free_tier"
+    paid = "paid"
+
+
+class FreeTierLimit(BaseModel):
+    metric: str
+    amount: float
+    period: str
+
+
+class BlockCostSpec(BaseModel):
+    tier: CostTier = CostTier.paid
+    free_tier_limits: list[FreeTierLimit] = []
+    estimated_monthly_usd: str = ""
+    note: str = ""
 
 
 class BlockMeta(BaseModel):
@@ -37,6 +57,7 @@ class BlockContract(BaseModel):
     provides: dict[str, PortSpec] = {}
     requires: dict[str, PortSpec] = {}
     config: list[ConfigField] = []
+    costs: BlockCostSpec = BlockCostSpec()
 
     @model_validator(mode="before")
     @classmethod

@@ -3,6 +3,14 @@ block:
   layer: build
   required_tech_stack: true
 
+costs:
+  tier: free_tier
+  free_tier_limits:
+    - metric: ci_minutes
+      amount: 2000
+      period: monthly
+  note: 2000 min/month on GitHub Free plan.
+
 provides: {}
 
 requires:

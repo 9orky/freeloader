@@ -3,6 +3,9 @@ block:
   layer: source
   required_tech_stack: true
 
+costs:
+  tier: always_free
+
 provides: {}
 
 requires: {}

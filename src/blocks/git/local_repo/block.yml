@@ -2,6 +2,9 @@ block:
   description: Initialises a local git repository and sets the remote origin.
   layer: source
 
+costs:
+  tier: always_free
+
 provides: {}
 
 requires: {}

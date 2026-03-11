@@ -2,6 +2,10 @@ block:
   description: Creates a Coolify project and returns its UUID.
   layer: platform
 
+costs:
+  tier: always_free
+  note: Self-hosted, no provider charge.
+
 provides:
   project_uuid:
     description: UUID of the Coolify project.

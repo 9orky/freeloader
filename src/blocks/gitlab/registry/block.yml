@@ -2,6 +2,14 @@ block:
   description: Creates a GitLab project and returns container registry credentials.
   layer: registry
 
+costs:
+  tier: free_tier
+  free_tier_limits:
+    - metric: registry_storage
+      amount: 5
+      period: monthly
+  note: 5 GB container registry storage on GitLab Free plan.
+
 provides:
   host:
     description: Container registry hostname (registry.gitlab.com).
