@@ -15,8 +15,8 @@ PKG = "freeloader"
 _LAYER_RANK: dict[str, int] = {
     "domain": 0,
     "storage": 1,
-    "application": 2,
-    "usecases": 3,
+    "usecases": 2,
+    "application": 3,
     "ports.interface": 4,
     "ports.cli": 5,
 }
@@ -134,7 +134,6 @@ class FeatureIsolationChecker(ArchChecker):
         result: list[str] = []
         features = self._feature_packages()
         for feature_dir in features:
-            feature_pkg = f"{PKG}.{feature_dir.name}"
             for from_mod, imp in self._package_imports(feature_dir):
                 for other_dir in features:
                     if other_dir == feature_dir:
@@ -178,7 +177,7 @@ class LayerOrderChecker(ArchChecker):
 
     @property
     def description(self) -> str:
-        return "domain < storage < application < usecases < ports.interface < ports.cli"
+        return "domain < storage < usecases < application < ports.interface < ports.cli"
 
     def violations(self) -> list[str]:
         result: list[str] = []

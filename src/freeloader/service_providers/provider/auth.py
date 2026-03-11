@@ -61,4 +61,6 @@ class OpenURL(ObtainTokenStep):
 
 
 def get_obtain_steps(provider_name: str) -> list[ObtainTokenStep]:
+    from .registry import load_provider
+
     return load_provider(provider_name).obtain_token_steps

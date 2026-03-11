@@ -21,7 +21,6 @@ class GitHubBilling(BillingAdapter):
         auth = Auth.Token(credentials.kv["GITHUB_TOKEN"])
         gh = Github(auth=auth)
 
-        actions = gh.get_user().get_repos()
         actions_billing = gh.requester.requestJsonAndCheck(
             "GET", "/user/settings/billing/actions")[1]
         storage_billing = gh.requester.requestJsonAndCheck(

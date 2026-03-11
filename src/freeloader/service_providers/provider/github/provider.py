@@ -1,7 +1,6 @@
 from github import Github, BadCredentialsException, Auth
 
-from ..auth import ServiceProvider, Credentials, ServiceProviderAuthError
-from ..obtain import Info, OpenURL
+from ..auth import Credentials, Info, OpenURL, ServiceProvider, ServiceProviderAuthError
 from ..registry import providers
 
 

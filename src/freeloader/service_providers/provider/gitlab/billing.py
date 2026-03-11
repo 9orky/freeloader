@@ -36,7 +36,6 @@ class GitLabBilling(BillingAdapter):
 
         ci_minutes_used = 0.0
         ci_minutes_limit = 400.0
-        plan = getattr(namespace, "plan", "free")
 
         if hasattr(namespace, "extra_shared_runners_minutes_limit"):
             ci_minutes_limit = float(

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from freeloader.shared import registry as lazy
 
 from .auth import Credentials
+from .registry import ensure_provider_registrations_loaded
 
 
 class BillingCheckCost(str, Enum):
@@ -47,6 +48,7 @@ billing_adapters = lazy.LazyRegistry[BillingAdapter]("BillingAdapterRegistry")
 
 
 def supports_billing(provider_name: str) -> bool:
+    ensure_provider_registrations_loaded()
     try:
         billing_adapters.get(provider_name)
         return True
@@ -55,10 +57,12 @@ def supports_billing(provider_name: str) -> bool:
 
 
 def get_billing_check_cost(provider_name: str) -> BillingCheckCost:
+    ensure_provider_registrations_loaded()
     adapter = billing_adapters.get(provider_name)
     return adapter.billing_check_cost
 
 
 def fetch_billing(provider_name: str, credentials: Credentials) -> BillingReport:
+    ensure_provider_registrations_loaded()
     adapter = billing_adapters.get(provider_name)
     return adapter.fetch_billing(credentials)

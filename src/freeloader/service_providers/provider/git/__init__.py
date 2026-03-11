@@ -1,1 +1,1 @@
-from . import provider
+from . import provider as provider

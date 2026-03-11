@@ -1,8 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from ..auth import ServiceProvider, Credentials, ServiceProviderAuthError
-from ..obtain import OpenURL
+from ..auth import Credentials, OpenURL, ServiceProvider, ServiceProviderAuthError
 from ..registry import providers
 
 

@@ -1,7 +1,6 @@
 from coolipy import Coolipy, exceptions
 
-from ..auth import ServiceProvider, Credentials, ServiceProviderAuthError
-from ..obtain import Info, Input, OpenURL
+from ..auth import Credentials, Info, Input, OpenURL, ServiceProvider, ServiceProviderAuthError
 from ..registry import providers
 
 

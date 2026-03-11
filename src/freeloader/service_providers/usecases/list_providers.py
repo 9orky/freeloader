@@ -1,12 +1,11 @@
-from ._views_auth import ProviderView
-from ..adapters import service_providers
+from ..models import ServiceProviderInfo
+from ..provider.registry import load_all_providers
+from .get_provider import get_provider
 
 
-def list_providers() -> list[ProviderView]:
-    providers = service_providers.find_all()
-    return [ProviderView(
-        name=str(provider["name"]),
-        requires_auth=bool(provider["requires_auth"]),
-        requires_tech_stack=bool(provider["requires_tech_stack"]),
-        auth_keys=list(provider["auth_keys"]),
-    ) for provider in providers]
+def list_providers() -> list[ServiceProviderInfo]:
+    providers = [get_provider(name) for name in load_all_providers()]
+    return sorted(providers, key=lambda provider: provider.name)
+
+
+__all__ = ["list_providers"]

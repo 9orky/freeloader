@@ -10,3 +10,4 @@ def test_cli_help_lists_registered_feature_groups() -> None:
     assert "hosts" in result.output
     assert "project" in result.output
     assert "secrets" in result.output
+    assert "service-providers" in result.output
