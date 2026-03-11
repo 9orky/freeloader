@@ -1,4 +1,4 @@
-from pathlib import Path
+import importlib
 
 from .base import TechDetector
 
@@ -14,4 +14,6 @@ def tech_detector(name: str):
 
 
 def load_detectors() -> dict[str, TechDetector]:
+    importlib.import_module(".detectors", __package__)
+
     return {name: cls() for name, cls in _REGISTRY.items()}

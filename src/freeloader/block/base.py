@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 
-from freeloader.shared.types import ConfigValue
-
 
 class BlockId(str):
     def __new__(cls, value: str):

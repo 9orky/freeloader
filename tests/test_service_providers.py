@@ -23,3 +23,24 @@ def test_get_provider_returns_auth_metadata() -> None:
     assert provider.auth_keys == ["GITHUB_TOKEN"]
     assert provider.obtain_token_steps
     assert provider.supports_billing is True
+
+
+def test_write_credentials_batches_secret_writes(monkeypatch) -> None:
+    from freeloader.service_providers.adapters import secrets as secrets_adapter
+
+    calls: list[dict[str, str]] = []
+
+    class FakeSecrets:
+        def write_secrets(self, values: dict[str, str]) -> None:
+            calls.append(values)
+
+    monkeypatch.setattr(
+        secrets_adapter.Secrets,
+        "for_default_namespace",
+        classmethod(lambda cls: FakeSecrets()),
+    )
+
+    secrets_adapter.write_credentials(
+        {"GITHUB_TOKEN": "token", "AWS_SECRET": "secret"})
+
+    assert calls == [{"GITHUB_TOKEN": "token", "AWS_SECRET": "secret"}]

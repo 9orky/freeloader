@@ -63,5 +63,5 @@ def _blocks_root() -> Path:
     assert blocks_root, "FREELOADER_BLOCKS environment variable must be set"
 
     blocks_root_path = Path(blocks_root)
-    assert blocks_root_path.is_dir(), f"Blocks root path does not exist"
+    assert blocks_root_path.is_dir(), "Blocks root path does not exist"
     return blocks_root_path

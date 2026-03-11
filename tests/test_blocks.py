@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from freeloader.block.infrastructure import BlockLoader
 
 BLOCKS_ROOT = Path(__file__).parent.parent / "src" / "blocks"

@@ -1,71 +1,63 @@
-import click
 from pathlib import Path
+
+import typer
 
 from freeloader.shared import console
 
-from . import usecases
+from . import application
 
 
-@click.group(name="project")
-def project_group():
-    pass
+project_app = typer.Typer(
+    name="project",
+    help="Manage project manifests and provisioning",
+    no_args_is_help=True,
+)
 
 
 def _cwd() -> Path:
     return Path.cwd()
 
 
-@project_group.command()
-# @console.handle_cli_error
-def detect():
-    tech_stack = usecases.detect_stack(_cwd())
-    if tech_stack:
-        return console.print_dict(tech_stack)
+@project_app.command(help="Detect the technology stack for the current project")
+@console.handle_errors
+def detect() -> None:
+    tech_stack = application.detect_project(_cwd())
+    if tech_stack and tech_stack.language:
+        console.print_dict(tech_stack.model_dump(mode="python"))
+        return
     console.warn("Could not detect technology stack for this project.")
 
 
-@project_group.command()
-@click.option("--full-manifest", is_flag=True, help="Include advanced configuration fields in the manifest")
-# @console.handle_cli_error
-def manage(full_manifest: bool):
+@project_app.command(help="Generate a project manifest for the current directory")
+@console.handle_errors
+def manage(
+    full_manifest: bool = typer.Option(
+        False,
+        "--full-manifest",
+        help="Include advanced configuration fields in the manifest",
+    ),
+) -> None:
     cwd = _cwd()
-    report = usecases.manage_project(
+    report = application.manage_project(
         cwd.name,
         cwd,
         full_manifest,
     )
 
-    console.print_dict(report)
+    console.print_dict(report.model_dump(mode="python"))
 
 
-@project_group.command()
-# @console.handle_cli_error
-def provision():
+@project_app.command(help="Provision project resources from the current manifest")
+@console.handle_errors
+def provision() -> None:
     cwd = _cwd()
-    usecases.provision(cwd)
+    application.provision_project(cwd)
     console.ok(f"Project '{cwd.name}' provisioned successfully.")
 
 
-@project_group.command()
-# @console.handle_cli_error
-def forget():
+@project_app.command(help="Destroy project resources and remove local state")
+@console.handle_errors
+def forget() -> None:
     cwd = _cwd()
-    usecases.forget_project(cwd)
+    application.forget_project(cwd)
     console.ok(f"Project '{cwd.name}' is not welcome anymore.")
-
-
-@project_group.command()
-# @console.handle_cli_error
-def reset():
-    cwd = _cwd()
-    usecases.forget_project(cwd)
-    usecases.manage_project(cwd.name, cwd, full_manifest=False)
-    usecases.provision(cwd)
-    console.ok(f"Project '{cwd.name}' has been reset successfully.")
-
-
-@project_group.command()
-# @console.handle_cli_error
-def test():
-    graph = usecases.build_test_projects(_cwd())
-    console.print_dict(graph)

@@ -478,7 +478,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
-    { name = "click" },
     { name = "coolipy" },
     { name = "cryptography" },
     { name = "eventsourcing" },
@@ -506,7 +505,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.42.54" },
-    { name = "click", specifier = ">=8.3.1" },
     { name = "coolipy", specifier = ">=0.0.8" },
     { name = "cryptography", specifier = ">=44.0" },
     { name = "eventsourcing", specifier = ">=9.5.3" },
@@ -521,7 +519,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0" },
     { name = "ruamel-yaml", specifier = ">=0.19.1" },
     { name = "structlog", specifier = ">=25.5.0" },
-    { name = "typer", extras = ["all"], specifier = ">=0.15" },
+    { name = "typer", specifier = ">=0.15" },
 ]
 
 [package.metadata.requires-dev]

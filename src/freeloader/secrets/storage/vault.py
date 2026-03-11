@@ -39,6 +39,10 @@ class SecretVault:
         self._data.setdefault(namespace, {})[key] = value
         self._save()
 
+    def set_many(self, values: dict[str, str], namespace: str) -> None:
+        self._data.setdefault(namespace, {}).update(values)
+        self._save()
+
     def list(self, namespace: str) -> list[str]:
         return list(self._data.get(namespace, {}).keys())
 

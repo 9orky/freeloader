@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from os import getenv
 
-from eventsourcing.application import Application
-
 
 @dataclass(frozen=True)
 class Freeloader:
@@ -18,15 +16,13 @@ class Freeloader:
 
     @classmethod
     def resolve_home_folder(cls) -> Path:
-        home_folder = Path(
-            getenv("FREELOADER_HOME", str(Path.home() / ".freeloader")))
+        home_folder = Path(getenv("FREELOADER_HOME", str(Path.home() / ".freeloader")))
         home_folder.mkdir(parents=True, exist_ok=True)
         return home_folder
 
     @classmethod
     def resolve_db_path(cls) -> Path:
-        db_path = Path(getenv("FREELOADER_DB", str(
-            cls.resolve_home_folder() / "freeloader.db")))
+        db_path = Path(getenv("FREELOADER_DB", str(cls.resolve_home_folder() / "freeloader.db")))
         return db_path
 
     @classmethod
@@ -49,13 +45,6 @@ class Freeloader:
             secrets_folder=secrets_folder,
             session_folder=session_folder,
         )
-
-
-class FreeloaderApplication(Application):
-    env = {
-        "INFRASTRUCTURE_FACTORY": "eventsourcing.sqlite:Factory",
-        "SQLITE_DBNAME": str(Freeloader.resolve_db_path()),
-    }
 
 
 def hosts_path() -> Path:

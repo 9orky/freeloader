@@ -1,18 +1,13 @@
 from pathlib import Path
 
-import freeloader.block.ports.interface as block_interface
-
-from .user.project import UserProject
+from ..adapters import block_gateway, manifest_store
 
 
-def forget_project(cwd: Path):
-    user_project = UserProject.from_path(cwd)
-    manifest = user_project.manifest
-
-    block_interface.destroy_project(
-        cwd,
-        user_project.resources_folder,
+def forget_project(project_folder: Path) -> None:
+    manifest = manifest_store.load_manifest(project_folder)
+    block_gateway.destroy_project(
+        project_folder,
+        manifest_store.resources_folder(project_folder),
         manifest.blocks,
     )
-
-    user_project.clean_up()
+    manifest_store.delete_project_state(project_folder)
