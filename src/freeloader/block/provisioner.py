@@ -3,8 +3,16 @@ from pathlib import Path
 from .infrastructure import BlockLoader, Block
 from .context import ExecutionContext
 from .resolver import BlockRef, DAGResolver
+from .provision import (
+    AppliedStepReport,
+    DestroyReport,
+    DestroyStepReport,
+    ProvisioningPlan,
+    ProvisioningReport,
+    ProvisioningResource,
+    ProvisioningStep,
+)
 from .runner import BlockRunner
-from .provision import ProvisioningResource
 
 
 class Provisioner:
@@ -25,59 +33,87 @@ class Provisioner:
     def load_resource(self, block: Block) -> ProvisioningResource:
         return ProvisioningResource.from_block(self._resources_root, block)
 
-    def provision(self, block_refs: list[BlockRef]) -> None:
+    def plan(self, block_refs: list[BlockRef]) -> ProvisioningPlan:
         assert block_refs, "At least one block reference must be provided"
 
         blocks = self._loader.load_by_refs(block_refs)
         contracts = {bid: block.contract for bid, block in blocks.items()}
         resolved_blocks = self._resolver.resolve(block_refs, contracts)
 
+        return ProvisioningPlan(
+            steps=[
+                ProvisioningStep(
+                    block=blocks[resolved_block.id],
+                    resolved_block=resolved_block,
+                )
+                for resolved_block in resolved_blocks
+            ]
+        )
+
+    def provision(self, block_refs: list[BlockRef]) -> ProvisioningReport:
+        plan = self.plan(block_refs)
         context = ExecutionContext()
-        resources: dict[str, ProvisioningResource] = {}
+        resources = self._prepare_resources(plan)
+        self._plan_resources(plan, resources)
+        applied_steps: list[AppliedStepReport] = []
 
-        for res_block in resolved_blocks:
-            block = blocks[res_block.id]
-            resource = self.load_resource(block)
-            resources[res_block.id] = resource
-
-            print(f"Block dump of {res_block.id}...")
-            resource.dump_block(block)
-
-            print(f"Init of {res_block.id}...")
-            self._runner.run_init(resource, res_block)
-
-        for res_block in resolved_blocks:
-            print(f"Plan for {res_block.id}...")
-            self._runner.run_plan(resources[res_block.id])
-
-        for res_block in resolved_blocks:
-            resource = resources[res_block.id]
-            if res_block.inputs:
-                self._runner.run_init_with_deps(resource, res_block, context)
+        for step in plan.steps:
+            resource = resources[step.id]
+            if step.has_inputs:
+                self._runner.run_init_with_deps(
+                    resource, step.resolved_block, context)
                 self._runner.run_plan(resource)
-            
+
             output = self._runner.run_apply(resource)
-            context.set_outputs(res_block.id, output)
+            context.set_outputs(step.id, output)
+            applied_steps.append(
+                AppliedStepReport(
+                    block_id=step.id,
+                    outputs=output,
+                    had_dependency_inputs=step.has_inputs,
+                )
+            )
 
-    def destroy(self, block_refs: list[BlockRef]) -> None:
-        assert block_refs, "At least one block reference must be provided"
+        return ProvisioningReport(plan=plan, applied_steps=applied_steps)
 
-        blocks = self._loader.load_by_refs(block_refs)
-        contracts = {bid: block.contract for bid, block in blocks.items()}
-        resolved_blocks = self._resolver.resolve(block_refs, contracts)
+    def destroy(self, block_refs: list[BlockRef]) -> DestroyReport:
+        plan = self.plan(block_refs)
+        steps: list[DestroyStepReport] = []
 
-        for res_block in reversed(resolved_blocks):
+        for step in reversed(plan.steps):
+            resource: ProvisioningResource | None = None
             try:
-                block = blocks[res_block.id]
-                resource = self.load_resource(block)
-            except Exception as e:
-                print(f"Failed to load resource for block {res_block.id}: {e}")
-                continue
-            
-            try:
-                print(f"Destroying resources for block {res_block.id}...")
+                resource = self.load_resource(step.block)
                 self._runner.run_destroy(resource)
+                steps.append(DestroyStepReport(
+                    block_id=step.id, destroyed=True))
             except Exception as e:
-                print(f"Failed to destroy resources for block {res_block.id}: {e}")
+                steps.append(
+                    DestroyStepReport(
+                        block_id=step.id,
+                        destroyed=False,
+                        error=str(e),
+                    )
+                )
+            finally:
+                if resource is not None:
+                    resource.rm()
 
-            resource.rm()
+        return DestroyReport(plan=plan, steps=steps)
+
+    def _prepare_resources(self, plan: ProvisioningPlan) -> dict[str, ProvisioningResource]:
+        resources: dict[str, ProvisioningResource] = {}
+        for step in plan.steps:
+            resource = self.load_resource(step.block)
+            resources[step.id] = resource
+            resource.dump_block(step.block)
+            self._runner.run_init(resource, step.resolved_block)
+        return resources
+
+    def _plan_resources(
+        self,
+        plan: ProvisioningPlan,
+        resources: dict[str, ProvisioningResource],
+    ) -> None:
+        for step in plan.steps:
+            self._runner.run_plan(resources[step.id])

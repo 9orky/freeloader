@@ -3,7 +3,8 @@ from pathlib import Path
 from pydantic import BaseModel
 from dataclasses import dataclass
 
-from freeloader import io, block
+from freeloader import block
+from freeloader.shared import io
 from freeloader.shared.types import ConfigValue
 
 

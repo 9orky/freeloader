@@ -15,18 +15,20 @@ class Freeloader:
 
     def build_managed_project_path(self, project_name: str) -> Path:
         return self.projects_folder / project_name
-    
+
     @classmethod
     def resolve_home_folder(cls) -> Path:
-        home_folder = Path(getenv("FREELOADER_HOME", str(Path.home() / ".freeloader")))
+        home_folder = Path(
+            getenv("FREELOADER_HOME", str(Path.home() / ".freeloader")))
         home_folder.mkdir(parents=True, exist_ok=True)
         return home_folder
-    
+
     @classmethod
     def resolve_db_path(cls) -> Path:
-        db_path = Path(getenv("FREELOADER_DB", str(cls.resolve_home_folder() / "freeloader.db")))
+        db_path = Path(getenv("FREELOADER_DB", str(
+            cls.resolve_home_folder() / "freeloader.db")))
         return db_path
-    
+
     @classmethod
     def from_env(cls, cwd: Path) -> "Freeloader":
         home_folder = cls.resolve_home_folder()
@@ -39,7 +41,7 @@ class Freeloader:
 
         session_folder = home_folder / "sessions"
         session_folder.mkdir(parents=True, exist_ok=True)
-        
+
         return cls(
             cwd=cwd,
             home_folder=home_folder,
@@ -54,3 +56,7 @@ class FreeloaderApplication(Application):
         "INFRASTRUCTURE_FACTORY": "eventsourcing.sqlite:Factory",
         "SQLITE_DBNAME": str(Freeloader.resolve_db_path()),
     }
+
+
+def hosts_path() -> Path:
+    return Freeloader.resolve_home_folder() / "hosts"

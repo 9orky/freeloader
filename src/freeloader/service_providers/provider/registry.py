@@ -1,4 +1,4 @@
-from freeloader import registry as lazy
+from freeloader.shared import registry as lazy
 
 from .auth import ServiceProvider
 

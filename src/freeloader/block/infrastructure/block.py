@@ -3,6 +3,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from freeloader.shared import io
 from freeloader.shared.types import ConfigValue
 
 from ..base import BlockId
@@ -23,7 +24,6 @@ class Block:
 
     @property
     def contract(self) -> BlockContract:
-        from freeloader import io
         return io.load_yaml_model(self.contract_file, BlockContract)
 
     @property

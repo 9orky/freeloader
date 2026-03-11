@@ -5,6 +5,7 @@ from freeloader.shared.types import ConfigValue
 from .base import SecretsReader
 from .infrastructure import BlockLoader
 from .orchestrator import ConfigOrchestrator
+from .provision import DestroyReport, ProvisioningReport
 from .resolver import BlockRef
 from .provisioner import Provisioner
 from .runner import BlockRunner
@@ -34,10 +35,10 @@ class BlocksFacade:
             project_name,
         )
 
-    def provision(self, resources_root: Path, block_refs: list[BlockRef]):
+    def provision(self, resources_root: Path, block_refs: list[BlockRef]) -> ProvisioningReport:
         provisioner = Provisioner(resources_root, self._loader, self._runner)
-        provisioner.provision(block_refs)
+        return provisioner.provision(block_refs)
 
-    def destroy(self, resources_root: Path, block_refs: list[BlockRef]):
+    def destroy(self, resources_root: Path, block_refs: list[BlockRef]) -> DestroyReport:
         provisioner = Provisioner(resources_root, self._loader, self._runner)
-        provisioner.destroy(block_refs)
+        return provisioner.destroy(block_refs)

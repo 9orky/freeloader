@@ -1,12 +1,14 @@
 import click
+from pathlib import Path
 
 from ..storage import Storage, PasswordRequiredError
-from freeloader import runtime
+from freeloader.shared.runtime import Freeloader
 
 
 def load_storage() -> Storage:
+    runtime = Freeloader.from_env(Path.cwd())
     return Storage(
-        runtime.secrets_folder, 
+        runtime.secrets_folder,
         runtime.session_folder,
     )
 

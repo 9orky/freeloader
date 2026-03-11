@@ -62,10 +62,8 @@ class VariablesBuilder:
             tfvars.update(secrets)
 
         if context and block.inputs:
-            resolved = context.resolve_inputs(block.inputs)
-            for req_key, value in resolved.items():
-                tfvar_name = req_key.replace(".", "_")
-                tfvars[tfvar_name] = value
+            for resolved_input in context.resolve_inputs(block.inputs):
+                tfvars[resolved_input.tfvar_name] = resolved_input.value
 
         has_target_folder = any(
             f.name == "target_folder"

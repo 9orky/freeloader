@@ -1,7 +1,7 @@
 import click
 import typer
 
-from freeloader import console
+from freeloader.shared import console
 from .. import usecases
 
 

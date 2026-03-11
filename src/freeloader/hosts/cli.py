@@ -2,8 +2,9 @@ from pathlib import Path
 
 import typer
 
-from freeloader.factory import Factory
 from freeloader.shared.console import error, handle_errors, info, print_table, ok, warn
+
+from .factory import HostsFactory
 
 
 hosts_app = typer.Typer(
@@ -13,7 +14,7 @@ hosts_app = typer.Typer(
 @hosts_app.command(help="Discover hosts from ~/.ssh/config and keys")
 @handle_errors
 def scan() -> None:
-    uc = Factory().hosts.usecases()
+    uc = HostsFactory().usecases()
     result = uc.scan()
 
     if result.key_count:
@@ -56,7 +57,7 @@ def import_host(
     alias: str = typer.Argument(...,
                                 help="SSH config alias to import, or 'all'"),
 ) -> None:
-    uc = Factory().hosts.usecases()
+    uc = HostsFactory().usecases()
     scan_result = uc.scan()
 
     if alias == "all":
@@ -80,7 +81,7 @@ def import_host(
 @hosts_app.command(help="List registered hosts")
 @handle_errors
 def list() -> None:
-    uc = Factory().hosts.usecases()
+    uc = HostsFactory().usecases()
     result = uc.list()
     if not result.hosts:
         info("No hosts registered. Run 'fl hosts scan' to discover them.")
@@ -110,7 +111,7 @@ def add(
 ) -> None:
     tag_list = [t.strip()
                 for t in tags.split(",") if t.strip()] if tags else []
-    uc = Factory().hosts.usecases()
+    uc = HostsFactory().usecases()
     result = uc.add(alias, host, user, port, identity_file, tag_list)
     tag = "updated" if result.replaced else "added"
     ok(f"{result.alias} → {result.host} ({tag})")
@@ -119,7 +120,7 @@ def add(
 @hosts_app.command(help="Remove a host from inventory")
 @handle_errors
 def remove(alias: str = typer.Argument(..., help="Host alias to remove")) -> None:
-    uc = Factory().hosts.usecases()
+    uc = HostsFactory().usecases()
     result = uc.remove(alias)
     if result.found:
         ok(f"Removed '{result.alias}'")
@@ -134,7 +135,7 @@ def check(
     alias: str = typer.Argument(
         None, help="Host alias to check (omit for all)"),
 ) -> None:
-    uc = Factory().hosts.usecases()
+    uc = HostsFactory().usecases()
     if alias:
         result = uc.check(alias)
         if result.reachable:
