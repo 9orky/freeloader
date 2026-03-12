@@ -1,4 +1,4 @@
-from .models import (
+from freeloader.block.domain.provisioning import (
     AppliedStepReport,
     DestroyReport,
     DestroyStepReport,

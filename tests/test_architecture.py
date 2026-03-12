@@ -199,9 +199,36 @@ class LayerOrderChecker(ArchChecker):
         return result
 
 
+class DeepRelativeImportChecker(ArchChecker):
+    @property
+    def title(self) -> str:
+        return "Deep Relative Imports"
+
+    @property
+    def description(self) -> str:
+        return "Feature modules may not use relative imports above the parent folder"
+
+    def violations(self) -> list[str]:
+        result: list[str] = []
+        for feature_dir in self._feature_packages():
+            for py_file in sorted(feature_dir.rglob("*.py")):
+                try:
+                    tree = ast.parse(py_file.read_text())
+                except SyntaxError:
+                    continue
+                module = self._file_to_module(py_file)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ImportFrom) and node.level > 2:
+                        result.append(
+                            f"{module}:{node.lineno} uses {'.' * node.level}{node.module or ''}"
+                        )
+        return result
+
+
 def build_pipeline() -> ArchChecker:
     head = FeatureIsolationChecker()
-    head.set_next(SharedIndependenceChecker()).set_next(LayerOrderChecker())
+    head.set_next(SharedIndependenceChecker()).set_next(
+        LayerOrderChecker()).set_next(DeepRelativeImportChecker())
     return head
 
 

@@ -1,5 +1,22 @@
 from .interface import Blocks
-from .services.provisioner import (
+from ..domain.events import (
+    BlockApplyCompleted,
+    BlockApplyStarted,
+    BlockDependencyInputsStarted,
+    BlockDestroyCompleted,
+    BlockDestroyEvent,
+    BlockDestroyFailed,
+    BlockDestroyStarted,
+    BlockPreparationCompleted,
+    BlockPreparationStarted,
+    BlockProvisionEvent,
+    DestroyFinished,
+    DestroyStarted,
+    ProvisioningFailed,
+    ProvisioningFinished,
+    ProvisioningStarted,
+)
+from ..domain.provisioning import (
     AppliedStepReport,
     DestroyReport,
     DestroyStepReport,
@@ -10,10 +27,25 @@ from .services.provisioner import (
 
 __all__ = [
     "AppliedStepReport",
+    "BlockApplyCompleted",
+    "BlockApplyStarted",
+    "BlockDependencyInputsStarted",
+    "BlockDestroyCompleted",
+    "BlockDestroyEvent",
+    "BlockDestroyFailed",
+    "BlockDestroyStarted",
+    "BlockPreparationCompleted",
+    "BlockPreparationStarted",
+    "BlockProvisionEvent",
     "Blocks",
+    "DestroyFinished",
     "DestroyReport",
+    "DestroyStarted",
     "DestroyStepReport",
+    "ProvisioningFailed",
+    "ProvisioningFinished",
     "ProvisioningPlan",
     "ProvisioningReport",
+    "ProvisioningStarted",
     "ProvisioningStep",
 ]

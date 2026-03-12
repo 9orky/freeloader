@@ -13,14 +13,21 @@ It owns all the code for one coherent capability—domain rules, use cases, stor
 machine API, and CLI—without spilling into other feature packages.
 
 The package is divided into four layers. Each layer has a single responsibility and
-is only allowed to depend on layers listed below it in the diagram.
+must follow the allowed import directions documented below.
 
 ```
-ui/               ← Typer CLI commands + presentation view shapes
-application/      ← use cases (commands and queries) + public facade for other features
-infrastructure/   ← concrete I/O implementations only
-domain/           ← pure business objects and abstract repository contracts
+ui/               → application/
+application/      → infrastructure/ and domain/
+infrastructure/   → domain/
+domain/           → stdlib only
 ```
+
+Read the arrows as import direction, not runtime control flow. In practice:
+
+- `ui/` may import `application/`
+- `application/` may import `domain/` and the feature-local infrastructure wiring
+- `infrastructure/` may import `domain/`
+- `domain/` imports nothing from the rest of the feature
 
 There is no root-level `models.py` and no `ports/` directory. Application functions
 return domain entities or plain Python types directly. Presentation-only shapes
@@ -133,6 +140,10 @@ multiple infrastructure calls). Each service is its own sub-package:
 - `service.py` — the orchestration class and any private helpers.
 - `__init__.py` — re-exports the service class and its result types.
 
+If a model must be imported by `domain/`, `infrastructure/`, or another feature,
+it is not service-owned and does not belong in `application/services/<name>/models.py`.
+Place shared models in the lowest layer that owns their meaning, usually `domain/`.
+
 Commands and queries remain the wiring boundary. They obtain repositories and any
 other concrete collaborators from infrastructure, then pass those already-wired
 objects into the service. A service may depend on feature-local infrastructure
@@ -236,10 +247,13 @@ __all__ = ["secrets_app", "Secrets"]
 | `infrastructure/` | `domain/`, `freeloader.shared`, third-party libs                          |
 | `ui/`             | `application/` (as a module), `freeloader.shared.console`                 |
 
+**Allowed import directions inside one feature:** `ui -> application`,
+`application -> infrastructure`, `application -> domain`, `infrastructure -> domain`.
+
 **Forbidden:** `domain/` importing from any other layer. `application/` importing
-from `ui/` or `infrastructure/` (other than the factory `__init__`). `ui/` importing
-directly from `domain/` or `infrastructure/`. `infrastructure/` importing from
-`application/`.
+from `ui/` or concrete infrastructure modules outside the approved wiring surface.
+`ui/` importing directly from `domain/` or `infrastructure/`. `infrastructure/`
+importing from `application/` or `ui/`.
 
 **Service-package exception.** The rule above is strict for `commands.py`,
 `queries.py`, and `interface.py`. A module inside `application/services/` may also
@@ -248,11 +262,14 @@ orchestration being coordinated and are still wired by the caller. Keep that
 exception narrow: services do not perform factory lookup, environment access, or
 storage discovery themselves.
 
-**Relative imports within a feature package.** All imports between modules inside
-the same feature use relative paths (`from ..domain.entity import X`, not
-`from freeloader.<feature>.domain.entity import X`). Only `freeloader.shared` and
-third-party libraries are imported with absolute paths. This keeps the feature
-package self-contained and refactor-friendly.
+**Relative imports within a feature package.** Relative imports may target the
+same package or the direct parent package only (`.` and `..`). Do not climb above
+the parent folder with `...` or deeper relative imports. If a module would need to
+go higher than its parent folder, switch to a feature-root absolute import such as
+`from freeloader.<feature>.domain.entity import X`. Use absolute imports for
+`freeloader.shared`, third-party libraries, and any deeper intra-feature jump that
+would otherwise require `...` or `....`. This keeps nested packages readable and
+avoids brittle dot-counting imports.
 
 **Command and query signatures.** Functions in `commands.py` and `queries.py`
 accept only primitives (`str`, `int`, `bool`), `pathlib.Path`, or plain frozen

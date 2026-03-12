@@ -1,11 +1,13 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 from freeloader.shared.types import ConfigValue
 
+from ..domain.events import BlockDestroyEvent, BlockProvisionEvent
 from ..domain.entity import BlockRef
+from ..domain.provisioning import DestroyReport, ProvisioningReport
 
 from . import commands, queries
-from .services.provisioner import DestroyReport, ProvisioningReport
 
 
 class Blocks:
@@ -40,12 +42,34 @@ class Blocks:
             block_refs=block_refs,
         )
 
+    def provision_events(
+        self,
+        resources_root: Path,
+        block_refs: list[BlockRef],
+    ) -> Iterator[BlockProvisionEvent]:
+        return commands.provision_blocks_events(
+            project_root=self._project_root,
+            resources_root=resources_root,
+            block_refs=block_refs,
+        )
+
     def destroy(
         self,
         resources_root: Path,
         block_refs: list[BlockRef],
     ) -> DestroyReport:
         return commands.destroy_blocks(
+            project_root=self._project_root,
+            resources_root=resources_root,
+            block_refs=block_refs,
+        )
+
+    def destroy_events(
+        self,
+        resources_root: Path,
+        block_refs: list[BlockRef],
+    ) -> Iterator[BlockDestroyEvent]:
+        return commands.destroy_blocks_events(
             project_root=self._project_root,
             resources_root=resources_root,
             block_refs=block_refs,
