@@ -1,7 +1,8 @@
 import abc
+from collections.abc import Iterator
 from pathlib import Path
 
-from freeloader.block import BlockRef
+from freeloader.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
 from freeloader.shared.types import ConfigValue
 
 from .entities import Manifest, TechStack
@@ -54,9 +55,25 @@ class BlockGateway(abc.ABC):
     ) -> None: ...
 
     @abc.abstractmethod
+    def provision_events(
+        self,
+        project_root: Path,
+        resources_root: Path,
+        block_refs: list[BlockRef],
+    ) -> Iterator[BlockProvisionEvent]: ...
+
+    @abc.abstractmethod
     def destroy(
         self,
         project_root: Path,
         resources_root: Path,
         block_refs: list[BlockRef],
     ) -> None: ...
+
+    @abc.abstractmethod
+    def destroy_events(
+        self,
+        project_root: Path,
+        resources_root: Path,
+        block_refs: list[BlockRef],
+    ) -> Iterator[BlockDestroyEvent]: ...

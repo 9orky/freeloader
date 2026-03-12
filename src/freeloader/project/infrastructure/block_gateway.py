@@ -1,7 +1,8 @@
 import dataclasses
+from collections.abc import Iterator
 from pathlib import Path
 
-from freeloader.block import Blocks, BlockRef
+from freeloader.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef, Blocks
 from freeloader.shared.types import ConfigValue
 
 from ..domain.entities import TechStack
@@ -33,6 +34,14 @@ class BlockSystemGateway(BlockGateway):
     ) -> None:
         Blocks.for_project(project_root).provision(resources_root, block_refs)
 
+    def provision_events(
+        self,
+        project_root: Path,
+        resources_root: Path,
+        block_refs: list[BlockRef],
+    ) -> Iterator[BlockProvisionEvent]:
+        return Blocks.for_project(project_root).provision_events(resources_root, block_refs)
+
     def destroy(
         self,
         project_root: Path,
@@ -40,3 +49,11 @@ class BlockSystemGateway(BlockGateway):
         block_refs: list[BlockRef],
     ) -> None:
         Blocks.for_project(project_root).destroy(resources_root, block_refs)
+
+    def destroy_events(
+        self,
+        project_root: Path,
+        resources_root: Path,
+        block_refs: list[BlockRef],
+    ) -> Iterator[BlockDestroyEvent]:
+        return Blocks.for_project(project_root).destroy_events(resources_root, block_refs)

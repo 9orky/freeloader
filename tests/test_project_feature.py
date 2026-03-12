@@ -73,21 +73,90 @@ def test_manage_command_calls_application_and_renders_result(
     assert captured[0]["block_configs"]["github/actions_ci"]["name"] == "demo"
 
 
-def test_provision_command_calls_application(monkeypatch, tmp_path: Path) -> None:
-    import freeloader.project.ui.cli as project_cli
+def test_provision_project_events_loads_manifest_and_forwards_iterator(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import freeloader.project.application.commands as commands
+    from freeloader.block import BlockRef, ProvisioningFinished
+    from freeloader.block.domain.provisioning import ProvisioningPlan, ProvisioningReport
+    from freeloader.project.domain.entities import Manifest, TechStack
 
-    called: list[Path] = []
+    block_ref = BlockRef.model_validate(
+        {"use": "github/actions_ci", "config": {"name": "demo"}}
+    )
+    manifest = Manifest(
+        name="demo",
+        tech_stack=TechStack(language="python"),
+        block_refs=(block_ref,),
+    )
+    resources_root = tmp_path / ".freeloader"
+    forwarded_events = iter(
+        [
+            ProvisioningFinished(
+                report=ProvisioningReport(
+                    plan=ProvisioningPlan(steps=[]),
+                    applied_steps=[],
+                )
+            )
+        ]
+    )
+    seen: list[tuple[Path, Path, list[BlockRef]]] = []
+
+    class FakeManifestRepository:
+        def load(self, folder: Path) -> Manifest:
+            assert folder == tmp_path
+            return manifest
+
+        def resources_folder(self, folder: Path) -> Path:
+            assert folder == tmp_path
+            return resources_root
+
+    class FakeBlockGateway:
+        def provision_events(
+            self,
+            project_root: Path,
+            manifest_resources_root: Path,
+            block_refs: list[BlockRef],
+        ):
+            seen.append((project_root, manifest_resources_root, block_refs))
+            return forwarded_events
+
+    monkeypatch.setattr(commands, "load_manifest_repository",
+                        lambda: FakeManifestRepository())
+    monkeypatch.setattr(commands, "load_block_gateway",
+                        lambda: FakeBlockGateway())
+
+    actual = commands.provision_project_events(tmp_path)
+
+    assert actual is forwarded_events
+    assert seen == [(tmp_path, resources_root, [block_ref])]
+
+
+def test_provision_command_uses_streaming_progress(monkeypatch, tmp_path: Path) -> None:
+    import freeloader.project.ui.cli as project_cli
+    from freeloader.block import ProvisioningStarted
+
+    received: list[list[object]] = []
 
     monkeypatch.setattr(project_cli, "_cwd", lambda: tmp_path)
     monkeypatch.setattr(
-        project_cli.application, "provision_project", lambda folder: called.append(
-            folder)
+        project_cli.application,
+        "provision_project_events",
+        lambda folder: iter([ProvisioningStarted(
+            total_blocks=1, block_ids=[folder.name])]),
+    )
+    monkeypatch.setattr(
+        project_cli,
+        "render_project_provision_progress",
+        lambda events: received.append(list(events)),
     )
 
     result = CliRunner().invoke(app, ["project", "provision"])
 
     assert result.exit_code == 0
-    assert called == [tmp_path]
+    assert received == [[ProvisioningStarted(
+        total_blocks=1, block_ids=[tmp_path.name])]]
+    assert "provisioned successfully" in result.output
 
 
 def test_status_command_renders_unmanaged(monkeypatch, tmp_path: Path) -> None:
@@ -138,18 +207,28 @@ def test_status_command_renders_managed(monkeypatch, tmp_path: Path) -> None:
     assert captured[0]["details"]["blocks"] == "1"
 
 
-def test_forget_command_calls_application(monkeypatch, tmp_path: Path) -> None:
+def test_forget_command_uses_streaming_progress(monkeypatch, tmp_path: Path) -> None:
     import freeloader.project.ui.cli as project_cli
+    from freeloader.block import DestroyStarted
 
-    called: list[Path] = []
+    received: list[list[object]] = []
 
     monkeypatch.setattr(project_cli, "_cwd", lambda: tmp_path)
     monkeypatch.setattr(
-        project_cli.application, "forget_project", lambda folder: called.append(
-            folder)
+        project_cli.application,
+        "forget_project_events",
+        lambda folder: iter(
+            [DestroyStarted(total_blocks=1, block_ids=[folder.name])]),
+    )
+    monkeypatch.setattr(
+        project_cli,
+        "render_project_forget_progress",
+        lambda events: received.append(list(events)),
     )
 
     result = CliRunner().invoke(app, ["project", "forget"])
 
     assert result.exit_code == 0
-    assert called == [tmp_path]
+    assert received == [
+        [DestroyStarted(total_blocks=1, block_ids=[tmp_path.name])]]
+    assert "is not welcome anymore" in result.output

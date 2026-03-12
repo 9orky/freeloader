@@ -6,6 +6,7 @@ from freeloader import fl
 from freeloader.shared import console
 
 from .. import application
+from .progress import render_project_forget_progress, render_project_provision_progress
 from .views import ManageProjectView, ProjectStatusView
 
 
@@ -70,7 +71,8 @@ def status() -> None:
 @console.handle_errors
 def provision() -> None:
     folder = _cwd()
-    application.provision_project(folder)
+    events = application.provision_project_events(folder)
+    render_project_provision_progress(events)
     console.ok(f"Project '{folder.name}' provisioned successfully.")
 
 
@@ -78,5 +80,6 @@ def provision() -> None:
 @console.handle_errors
 def forget() -> None:
     folder = _cwd()
-    application.forget_project(folder)
+    events = application.forget_project_events(folder)
+    render_project_forget_progress(events)
     console.ok(f"Project '{folder.name}' is not welcome anymore.")
