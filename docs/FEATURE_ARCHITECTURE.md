@@ -17,15 +17,15 @@ is only allowed to depend on layers listed below it in the diagram.
 
 ```
 ui/               ← Typer CLI commands + presentation view shapes
-application/      ← use cases (commands and queries); no I/O
-infrastructure/   ← concrete I/O + public facade for other features
+application/      ← use cases (commands and queries) + public facade for other features
+infrastructure/   ← concrete I/O implementations only
 domain/           ← pure business objects and abstract repository contracts
 ```
 
 There is no root-level `models.py` and no `ports/` directory. Application functions
 return domain entities or plain Python types directly. Presentation-only shapes
 belong in `ui/views.py`. The machine API used by other features lives in
-`infrastructure/interface.py` and is re-exported through the package `__init__.py`.
+`application/interface.py` and is re-exported through the package `__init__.py`.
 
 ---
 
@@ -43,13 +43,13 @@ src/freeloader/<feature>/
 │   └── repository.py       # Abstract base classes for storage contracts
 │
 ├── application/
-│   ├── __init__.py         # (empty or module docstring only)
+│   ├── __init__.py         # Re-exports: facade class + public use-case functions
+│   ├── interface.py        # Public facade: the machine API for other features
 │   ├── commands.py         # Write operations: create, update, delete
 │   └── queries.py          # Read operations: list, get, check
 │
 ├── infrastructure/
-│   ├── __init__.py         # Factory functions + re-export of public facade
-│   ├── interface.py        # Public facade: the machine API for other features
+│   ├── __init__.py         # Factory functions only
 │   └── <impl>.py           # Concrete repository implementations
 │
 └── ui/
@@ -95,6 +95,18 @@ For pragmatic simplicity (no full DI framework), use-case functions call
 `load_X_repository()` from the infrastructure `__init__.py` to get a concrete
 repository. This keeps the layer thin while avoiding global state.
 
+`interface.py` — the public facade used by other features. The facade:
+- Holds enough context to scope calls (e.g., a namespace string).
+- Delegates every operation to `commands` / `queries` in the same layer.
+- Normalizes inputs (e.g., strips and lowercases key names) so callers don't need
+  to know about internal conventions.
+- Provides `@classmethod` constructors for common configurations (e.g.,
+  `for_default_namespace()`).
+- Contains **no I/O** and **no business logic** of its own.
+
+This file belongs in `application/` because it has no I/O—it is a pure orchestration
+surface that composes the use cases for external callers.
+
 `commands.py` — mutating operations. Each function:
 - Obtains a repository from the factory.
 - Applies domain logic or delegates to the repository.
@@ -104,52 +116,37 @@ repository. This keeps the layer thin while avoiding global state.
 - Obtains a repository from the factory.
 - Returns domain entities or plain Python types.
 
-Neither file should contain I/O, rendering logic, or CLI types.
+No file in `application/` should contain I/O, rendering logic, or CLI types.
 
 ```
 secrets example
 ───────────────
-commands.py → write_secret(), write_secrets(), remove_secret(), has_secrets()
-queries.py  → list_secrets(), reveal_secrets(), read_secrets()
+interface.py → Secrets(namespace)
+                .read_secrets(names)       delegates to queries.read_secrets()
+                .write_secret(name, value)  delegates to commands.write_secret()
+                .write_secrets(values)      delegates to commands.write_secrets()
+                .has_secrets(names)         delegates to commands.has_secrets()
+                .for_default_namespace()    classmethod constructor
+commands.py  → write_secret(), write_secrets(), remove_secret(), has_secrets()
+queries.py   → list_secrets(), reveal_secrets(), read_secrets()
 ```
 
 ### `infrastructure/`
 
-The concrete I/O layer. It has two responsibilities:
-
-**Storage implementations** — classes that extend the abstract repositories from
-`domain/repository.py`. They may use stdlib I/O, third-party libraries, and
-`freeloader.shared` utilities. Each implementation file contains one class that
-inherits from the corresponding abstract repository and fully implements all
-abstract methods.
-
-**Public facade** (`interface.py`) — a single class that exposes the machine API
-used by other features. The facade:
-- Holds enough context to scope calls (e.g., a namespace string).
-- Delegates every operation to the application layer (`commands` / `queries`).
-- Normalizes inputs (e.g., strips and lowercases key names) so callers don't need
-  to know about internal conventions.
-- Provides `@classmethod` constructors for common configurations (e.g.,
-  `for_default_namespace()`).
-
-The facade contains no business logic of its own. It is a thin adapter between the
-calling feature and this feature's application layer.
+The concrete I/O layer. Its sole responsibility is **storage implementations**:
+classes that extend the abstract repositories from `domain/repository.py`. They
+may use stdlib I/O, third-party libraries, and `freeloader.shared` utilities.
+Each implementation file contains one class that inherits from the corresponding
+abstract repository and fully implements all abstract methods.
 
 `__init__.py` exposes the factory function(s) that construct and wire together the
-concrete implementations, and re-exports the public facade class so it is reachable
-from the package root.
+concrete implementations. It does **not** re-export the facade — that lives in
+`application/__init__.py`.
 
 ```
 secrets example
 ───────────────
 infrastructure/__init__.py  → load_secret_repository() wires SecretSession + SecretVault
-                              re-exports Secrets
-infrastructure/interface.py → Secrets(namespace)
-                               .read_secrets(names)       delegates to queries.read_secrets()
-                               .write_secret(name, value)  delegates to commands.write_secret()
-                               .write_secrets(values)      delegates to commands.write_secrets()
-                               .has_secrets(names)         delegates to commands.has_secrets()
-                               .for_default_namespace()    classmethod constructor
 infrastructure/vault.py     → SecretVault(SecretRepository) — encrypted file storage
 infrastructure/session.py   → SecretSession(SessionRepository) — password cache file
 ```
@@ -189,14 +186,14 @@ ui/views.py  → SecretView(name, value, namespace)
 
 The public face of the feature package. It re-exports:
 - The CLI Typer instance (mounted in `freeloader/cli.py`).
-- The public facade class from `infrastructure/interface.py` (used by other features).
+- The public facade class from `application/interface.py` (used by other features).
 
 Keep it minimal. Do not re-export internal types or implementation details.
 
 ```python
 # secrets example
 from .ui.cli import secrets_app
-from .infrastructure import Secrets
+from .application import Secrets
 
 __all__ = ["secrets_app", "Secrets"]
 ```
@@ -205,18 +202,20 @@ __all__ = ["secrets_app", "Secrets"]
 
 ## Dependency Rules Summary
 
-| Layer             | May import from                                              |
-|-------------------|--------------------------------------------------------------|
-| `domain/`         | stdlib only                                                  |
-| `application/`    | `domain/`, `infrastructure/__init__` (factory only)         |
-| `infrastructure/` | `domain/`, `application/` (facade only), `freeloader.shared`, third-party libs |
-| `ui/`             | `application/` (as a module), `freeloader.shared.console`   |
+| Layer             | May import from                                                            |
+|-------------------|----------------------------------------------------------------------------|
+| `domain/`         | stdlib only                                                                |
+| `application/`    | `domain/`, `infrastructure/__init__` (factory functions only)              |
+| `infrastructure/` | `domain/`, `freeloader.shared`, third-party libs                          |
+| `ui/`             | `application/` (as a module), `freeloader.shared.console`                 |
 
 **Forbidden:** `domain/` importing from any other layer. `application/` importing
-from `ui/`. `ui/` importing directly from `domain/` or `infrastructure/`.
+from `ui/` or `infrastructure/` (other than the factory `__init__`). `ui/` importing
+directly from `domain/` or `infrastructure/`. `infrastructure/` importing from
+`application/`.
 
-The one intentional exception: `infrastructure/interface.py` imports from
-`application/` — this is the only approved upward reference, limited to the facade.
+Cross-feature calls go through `<feature>.application.interface` only — never
+through internal layers of another feature.
 
 ---
 
@@ -238,10 +237,10 @@ The one intentional exception: `infrastructure/interface.py` imports from
    class that extends the abstract repository. In `infrastructure/__init__.py`, write
    the factory function(s) that construct and return the correct implementation.
 
-5. **Expose the machine API.** In `infrastructure/interface.py`, write the facade
+5. **Expose the machine API.** In `application/interface.py`, write the facade
    class used by other features. One method per application function. Normalize
-   inputs. Delegate to the application module. Re-export the facade from
-   `infrastructure/__init__.py`.
+   inputs. Delegate to `commands` / `queries` in the same package. Re-export the
+   facade from `application/__init__.py` and the package `__init__.py`.
 
 6. **Wire the CLI.** In `ui/cli.py`, create the Typer app. Each command imports and
    calls `application.<function>()`. Decorate with `@console.handle_errors`. Add
@@ -277,9 +276,9 @@ Features using the older flat layout (`application.py`, `models.py`, `cli.py`,
 4. **Remove `models.py`.** Move domain entities into `domain/`. Move any
    presentation shapes into `ui/views.py`. Delete the file. Update all imports.
 
-5. **Add `infrastructure/interface.py`.** If other features import from this
-   feature's `application.py` directly, introduce the facade here and redirect
-   those imports to the package root (which re-exports it from `__init__.py`).
+5. **Add `application/interface.py`.** If other features import from this feature
+   directly, introduce the facade here and redirect those imports to the package
+   root (which re-exports it from `__init__.py`).
 
 6. **Add `ui/` directory.** Move `cli.py` into `ui/cli.py`. Update it to import
    the `application` module as a whole, not `commands`/`queries` individually.

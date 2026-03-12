@@ -1,8 +1,6 @@
 from freeloader import fl
 
 from ..domain.repository import SecretRepository
-from ..infrastructure.interface import Secrets
-
 from .session import SecretSession
 from .vault import SecretVault
 
@@ -15,5 +13,4 @@ def load_secret_repository(passphrase: str | None = None) -> SecretRepository:
 
 __all__ = [
     "load_secret_repository",
-    "Secrets",
 ]

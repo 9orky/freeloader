@@ -1,5 +1,6 @@
 # Project Feature — Clean Architecture Migration Plan
 
+
 Migrate `src/freeloader/project/` to the canonical four-layer feature architecture
 documented in `docs/FEATURE_ARCHITECTURE.md`, using `secrets` as the reference
 implementation. The target package lives at `src/freeloader/project_clean/` during

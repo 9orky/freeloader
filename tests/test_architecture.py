@@ -56,8 +56,10 @@ class ArchChecker(ABC):
     def _is_package(self, path: Path) -> bool:
         return path.is_dir() and (path / "__init__.py").exists()
 
+    _SUBSYSTEMS = {"shared", "block"}
+
     def _feature_packages(self) -> list[Path]:
-        return sorted(d for d in FREELOADER.iterdir() if self._is_package(d) and d.name != "shared")
+        return sorted(d for d in FREELOADER.iterdir() if self._is_package(d) and d.name not in self._SUBSYSTEMS)
 
     def _shared_subpackages(self) -> list[Path]:
         return sorted(d for d in SHARED.iterdir() if self._is_package(d))
@@ -128,7 +130,7 @@ class FeatureIsolationChecker(ArchChecker):
 
     @property
     def description(self) -> str:
-        return "Features may only communicate through ports.interface"
+        return "Features may only communicate through application.interface"
 
     def violations(self) -> list[str]:
         result: list[str] = []
@@ -141,7 +143,7 @@ class FeatureIsolationChecker(ArchChecker):
                     other_pkg = f"{PKG}.{other_dir.name}"
                     if not (imp == other_pkg or imp.startswith(other_pkg + ".")):
                         continue
-                    allowed = f"{other_pkg}.ports.interface"
+                    allowed = f"{other_pkg}.application.interface"
                     if imp != allowed and not imp.startswith(allowed + "."):
                         result.append(f"{from_mod} -> {imp}")
         return result

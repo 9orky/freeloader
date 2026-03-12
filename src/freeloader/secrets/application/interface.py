@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
-from ..application import commands, queries
 from ..domain.entity import DEFAULT_NAMESPACE
+
+from . import commands, queries
 
 
 @dataclass(frozen=True)

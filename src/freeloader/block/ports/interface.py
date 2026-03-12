@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from freeloader.secrets.infrastructure.interface import Secrets
+from freeloader.secrets.application.interface import Secrets
 from freeloader.shared.types import ConfigValue
 
 from ..base import SecretsReader
