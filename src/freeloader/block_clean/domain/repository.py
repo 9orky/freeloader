@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from .entity import Block, ProvisionedResource
+from .entity import Block
 from .value_object import BlockId
 
 
@@ -25,33 +25,4 @@ class BlockRepository(ABC):
     @abstractmethod
     def dump_assets(self, block_id: BlockId, target: Path) -> None:
         """Copy the Terraform source files for `block_id` into `target`."""
-        ...
-
-
-class ResourceRepository(ABC):
-    """Storage contract for managing block provisioning workspaces.
-
-    Each `ProvisionedResource` is identified by its `BlockId`. The infrastructure
-    implementation (`FileSystemResourceRepository`) owns the folder-path mapping;
-    the application layer works exclusively with `ProvisionedResource` entities.
-    """
-
-    @abstractmethod
-    def create(self, block_id: BlockId) -> ProvisionedResource:
-        """Register a new workspace for `block_id` (creates backing storage)."""
-        ...
-
-    @abstractmethod
-    def get(self, block_id: BlockId) -> ProvisionedResource | None:
-        """Return the resource for `block_id`, or None if it does not exist."""
-        ...
-
-    @abstractmethod
-    def remove(self, block_id: BlockId) -> None:
-        """Destroy the workspace for `block_id` (deletes backing storage)."""
-        ...
-
-    @abstractmethod
-    def list_all(self) -> list[ProvisionedResource]:
-        """Return all currently registered resources."""
         ...

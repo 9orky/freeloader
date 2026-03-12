@@ -99,13 +99,13 @@ Classes to include (in order):
 - `FreeTierLimit(BaseModel)`
 - `BlockCostSpec(BaseModel)`
 - `BlockMeta(BaseModel)`
-- `ConfigField(BaseModel)` — **drop** `project_name_default: bool = False`. That
-  field existed solely to drive `collect_defaults`, an application-layer concern.
-  Defaults for any field should be expressed as a plain `default` value in the
-  block YAML.
+- `ConfigField(BaseModel)` — **keep** `project_name_default: bool = False`.
+    This flag is part of the block-contract schema used by real blocks. The domain
+    model owns the data shape; application and infrastructure code decide when to
+    apply it.
 - `PortSpec(BaseModel)`
-- `BlockContract(BaseModel)` — keep only `required_secret_keys`,
-  `tech_stack_field_names`, and `config_fields` properties. **Drop**:
+- `BlockContract(BaseModel)` — keep only `required_secret_keys` and
+    `config_fields()` as convenience APIs. **Drop**:
   - `_flatten_config_groups` model validator — YAML format normalisation belongs in
     the infrastructure loader (`FileSystemBlockLoader._source_block_from_folder`,
     Step 2). The domain model only understands the canonical flat list form.
@@ -134,16 +134,19 @@ This is **new** — there is no direct counterpart in the old `block/` package a
 domain level. The old `infrastructure/block.py::Block` holds filesystem paths too and
 will become `SourceBlock` in infrastructure (Step 2).
 
-### 1.3c — Execution context types (from `block/context.py`)
+### 1.3c — Execution dependency reference (from `block/context.py`)
 
-Port `OutputReference` and `ResolvedInput` as frozen dataclasses. **Do not port**
-`ExecutionContext` — it is a mutable accumulator for the provisioning loop and
-belongs in `application/commands.py` (Step 3).
+Port `OutputReference` as a frozen dataclass. **Do not port** `ResolvedInput` or
+`ExecutionContext`.
 
-**Drop the `tfvar_name` property** from both `OutputReference` and `ResolvedInput`.
-Generating a Terraform variable name by replacing `.` with `_` is an infrastructure
-convention; the infrastructure runner (`VariablesBuilder`) performs this translation
-directly on `reference.requirement_key`.
+- `ResolvedInput` becomes unnecessary in the refactor; the provisioning service can
+    work directly with `{tfvar_name: value}` mappings.
+- `ExecutionContext` is a mutable accumulator for the provisioning loop and belongs
+    in the provisioning service implementation (Step 3), not in the domain.
+
+**Drop the `tfvar_name` property** from `OutputReference`. Generating a Terraform
+variable name by replacing `.` with `_` is a provisioning concern; the application
+service performs that translation when preparing `extra_vars` for the runner.
 
 ### 1.3d — Resolver reference types (from `block/resolver/base.py`)
 
@@ -152,25 +155,6 @@ base because it is parsed from YAML manifests. Update imports:
 - `from freeloader.shared.types import ConfigValue`
 - `from .entity import BlockContract` → same file, no cross-import needed — place
   `BlockRef`/`ResolvedBlock` after the contract classes.
-
-### 1.3e — New `ProvisionedResource` domain entity
-
-`ProvisionedResource` is a proper domain entity: it has a stable identity (the
-`BlockId` of the block whose Terraform workspace it represents) and a clear lifecycle
-(created → initialised → applied/destroyed). It is **new** — the old
-`provision/resource.py::ProvisioningResource` conflated this identity with filesystem
-operations, which belong exclusively in infrastructure.
-
-```python
-@dataclass(frozen=True)
-class ProvisionedResource:
-    """Domain entity representing a provisioned Terraform workspace for one block."""
-    block_id: BlockId
-```
-
-The entity carries no path and performs no I/O. The `ResourceRepository` (Task 1.4)
-manages the lifecycle; the infrastructure implementation (`FileSystemResourceRepository`
-in Step 2) owns the folder-path logic.
 
 Final import block for `entity.py`:
 ```python
@@ -194,15 +178,14 @@ from .value_object import BlockId
 
 ## Task 1.4 — `domain/repository.py`
 
-Port `SecretsReader` from `block/base.py` and add two new repository interfaces:
-`BlockRepository` (block definitions) and `ResourceRepository` (provisioning
-workspaces).
+Port `SecretsReader` from `block/base.py` and add `BlockRepository` for block
+definition storage.
 
 ```python
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from .entity import Block, ProvisionedResource
+from .entity import Block
 from .value_object import BlockId
 
 
@@ -227,44 +210,11 @@ class BlockRepository(ABC):
     def dump_assets(self, block_id: BlockId, target: Path) -> None:
         """Copy the Terraform source files for `block_id` into `target`."""
         ...
-
-
-class ResourceRepository(ABC):
-    """Storage contract for managing block provisioning workspaces.
-
-    Each `ProvisionedResource` is identified by its `BlockId`. The infrastructure
-    implementation (`FileSystemResourceRepository`) owns the folder-path mapping;
-    the application layer works exclusively with `ProvisionedResource` entities.
-    """
-
-    @abstractmethod
-    def create(self, block_id: BlockId) -> ProvisionedResource:
-        """Register a new workspace for `block_id` (creates backing storage)."""
-        ...
-
-    @abstractmethod
-    def get(self, block_id: BlockId) -> ProvisionedResource | None:
-        """Return the resource for `block_id`, or None if it does not exist."""
-        ...
-
-    @abstractmethod
-    def remove(self, block_id: BlockId) -> None:
-        """Destroy the workspace for `block_id` (deletes backing storage)."""
-        ...
-
-    @abstractmethod
-    def list_all(self) -> list[ProvisionedResource]:
-        """Return all currently registered resources."""
-        ...
 ```
 
 The `dump_assets` method on `BlockRepository` keeps block-source paths out of the
 application layer. The application commands call this method rather than holding a
 source `Path` directly.
-
-`ResourceRepository` is the equivalent pattern for provisioning workspaces: the
-application layer creates and removes resources by `BlockId`; only the infrastructure
-implementation touches the filesystem.
 
 Source: `block/base.py::SecretsReader`.
 
@@ -357,6 +307,6 @@ After completing all tasks in this step, confirm:
    - `freeloader.block` (old package)
    - `pathlib` (except `repository.py`, for the `dump_assets` signature only)
 3. `from freeloader.block_clean.domain import Layer, LAYER_ORDER` works.
-4. `from freeloader.block_clean.domain.entity import Block, BlockRef, BlockContract, ProvisionedResource` works.
-5. `from freeloader.block_clean.domain.repository import SecretsReader, BlockRepository, ResourceRepository` works.
+4. `from freeloader.block_clean.domain.entity import Block, BlockRef, BlockContract, OutputReference` works.
+5. `from freeloader.block_clean.domain.repository import SecretsReader, BlockRepository` works.
 6. `from freeloader.block_clean.domain.resolver import DAGResolver` works.

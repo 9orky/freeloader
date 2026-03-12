@@ -11,6 +11,10 @@ from freeloader.shared.types import ConfigValue
 from . import Layer
 from .value_object import BlockId
 
+_TECH_STACK_KEYS = frozenset(
+    {"language", "language_version", "package_manager", "framework"}
+)
+
 # ---------------------------------------------------------------------------
 # Contract types (ported from block/contract.py)
 # ---------------------------------------------------------------------------
@@ -48,6 +52,7 @@ class ConfigField(BaseModel):
     default: ConfigValue | None = None
     choices: list[str] | None = None
     group: Literal["basic", "advanced", "secrets"] = "basic"
+    project_name_default: bool = False
 
 
 class PortSpec(BaseModel):
@@ -128,15 +133,3 @@ class ResolvedBlock:
     @property
     def id(self) -> str:
         return self.ref.resolved_id
-
-
-# ---------------------------------------------------------------------------
-# ProvisionedResource domain entity (new — identity for a Terraform workspace)
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class ProvisionedResource:
-    """Domain entity representing a provisioned Terraform workspace for one block."""
-
-    block_id: BlockId

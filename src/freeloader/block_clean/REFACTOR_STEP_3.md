@@ -1,9 +1,15 @@
 # Step 3 — Application Layer
 
 Build the use-case and public facade layer. Application code may import from
-`freeloader.block_clean.domain` and call `infrastructure.__init__` factory functions,
-but **must not instantiate or import infrastructure implementation classes directly**
-(e.g., `FileSystemBlockLoader`, `BlockRunner`). It never performs I/O itself.
+`freeloader.block_clean.domain` and call `infrastructure.__init__` factory functions.
+**Commands and queries must remain thin** — they obtain repositories, wire services,
+delegate, and return. Any non-trivial orchestration (multi-step loops, context
+accumulation, cross-cutting concerns) belongs in a service class inside
+`application/services/`.
+
+Infrastructure implementation classes (`FileSystemBlockLoader`, `SourceBlock`,
+`SecretsAdapter`) must never be imported by application code. The permitted
+exceptions are documented per file below.
 
 **Prerequisite:** Steps 1 and 2 are complete and ruff-clean.
 
@@ -18,8 +24,45 @@ src/freeloader/block_clean/application/
 ├── __init__.py
 ├── interface.py
 ├── commands.py
-└── queries.py
+├── queries.py
+└── services/
+    ├── __init__.py
+    └── provisioner/
+        ├── __init__.py
+        ├── models.py
+        └── service.py
 ```
+
+---
+
+## Design principle: thin commands and queries, services for orchestration
+
+**Direction of calls:** `interface` → `commands` → `services`. Services never call
+commands.
+
+**Commands** wire and invoke. A command function accepts only primitives, `Path`,
+and plain domain DTOs — never repository ABCs, infrastructure objects, or service
+classes. Internally it:
+1. Obtains a `BlockRepository` via `load_block_repository()`.
+2. Obtains a `SecretsReader` via `load_secrets_reader()` when needed.
+3. Constructs any infrastructure adapters it needs (e.g. `BlockRunner`).
+4. Constructs the appropriate service.
+5. Calls one method on the service and returns its result.
+
+**Queries** also keep primitive-only signatures. They obtain repositories and any
+other needed adapters via infrastructure factory functions, then return domain
+entities or plain Python types.
+
+**Services** own all non-trivial logic. Result types (dataclasses) live inside the
+service package alongside the service class — not in `commands.py`.
+
+**Services are packages**, not single files, when they own both models and behaviour.
+The `provisioner` service package owns: `models.py` (result types) and `service.py`
+(orchestration class + private helpers).
+
+Application-service modules may depend on feature-local infrastructure collaborators
+that were already wired by commands. They must not perform environment lookup or
+factory wiring themselves.
 
 ---
 
@@ -29,26 +72,39 @@ Query functions are read-only operations. They obtain a `BlockRepository` from t
 infrastructure factory and return domain entities or plain Python types. No mutation,
 no Terraform execution.
 
+Allowed infrastructure imports: `load_block_repository` and `load_secrets_reader`
+from `..infrastructure` only. No concrete implementation classes. Use relative
+imports within `block_clean`.
+
 ### `get_manifest_configs`
 
 Port logic from `block/orchestrator.py::ConfigOrchestrator.build_manifest_configs`.
 Convert from a class method to a standalone function.
 
+`BlockContract.collect_defaults()` was removed (Step 1) — the policy of which
+config groups to include belongs here. `BlockContract` does not carry a
+`tech_stack_field_names` computed property; compute the list inline using the
+module-level `_TECH_STACK_KEYS` constant. The `required_tech_stack` flag lives on
+`BlockMeta` and is accessed as `contract.block.required_tech_stack`.
+
 ```python
 from freeloader.shared.types import ConfigValue
 
-from freeloader.block_clean.domain.entity import Block
-from freeloader.block_clean.domain.repository import SecretsReader
-from freeloader.block_clean.infrastructure import load_block_repository
+from ..infrastructure import load_block_repository, load_secrets_reader
+
+
+_TECH_STACK_KEYS = frozenset(
+    {"language", "language_version", "package_manager", "framework"}
+)
 
 
 def get_manifest_configs(
-    secrets: SecretsReader,
     tech_stack: dict[str, str],
     full_config: bool,
     project_name: str | None = None,
 ) -> dict[str, dict[str, ConfigValue]]:
     repository = load_block_repository()
+    secrets = load_secrets_reader()
     blocks = repository.load_all()
     configs: dict[str, dict[str, ConfigValue]] = {}
 
@@ -61,18 +117,20 @@ def get_manifest_configs(
 
         groups = ["basic", "advanced"] if full_config else ["basic"]
         # collect_defaults was removed from BlockContract (application concern);
-        # inline the logic here.
-        config: dict[str, ConfigValue] = {
-            f.name: f.default
-            for f in contract.config
-            if f.group in groups and f.default is not None
-        }
+        # inline the policy here, including project-name-derived defaults.
+        config: dict[str, ConfigValue] = {}
+        for field in contract.config:
+            if field.group not in groups:
+                continue
+            if field.project_name_default and project_name is not None:
+                config[field.name] = project_name
+            elif field.default is not None:
+                config[field.name] = field.default
 
         if contract.block.required_tech_stack and tech_stack:
-            _TECH_STACK_KEYS = frozenset(
-                {"language", "language_version", "package_manager", "framework"}
-            )
-            tech_stack_field_names = [f.name for f in contract.config if f.name in _TECH_STACK_KEYS]
+            tech_stack_field_names = [
+                f.name for f in contract.config if f.name in _TECH_STACK_KEYS
+            ]
             config = _apply_tech_stack(config, tech_stack_field_names, tech_stack)
 
         configs[block_id] = config
@@ -92,25 +150,15 @@ def _apply_tech_stack(
     return config
 ```
 
-Note: `dump_config()` was a method on the old `Block` infra class. Here we replicate
-its logic inline using only the domain `BlockContract` — this removes the infra
-dependency from query logic.
-
 Source: `block/orchestrator.py`.
 
 ---
 
-## Task 3.2 — `application/commands.py`
+## Task 3.2 — `application/services/provisioner/models.py`
 
-This file has two responsibilities: (1) define the result dataclasses for provisioning
-and destroy operations, and (2) implement the `provision_blocks` and `destroy_blocks`
-command functions.
-
-### 3.2a — Result dataclasses
-
-These are pure value types. They move here from `block/provision/models.py`, and the
-critical change is that `ProvisioningStep.block` now holds a domain `Block` (not the
-old infra `Block`). No infrastructure imports allowed here.
+All result dataclasses for the provisioning service live here — not in `commands.py`.
+They move from `block/provision/models.py`, with the key change that
+`ProvisioningStep.block` now holds a domain `Block`. No infrastructure imports.
 
 ```python
 from __future__ import annotations
@@ -119,7 +167,7 @@ from dataclasses import dataclass
 
 from freeloader.shared.types import ConfigValue
 
-from freeloader.block_clean.domain.entity import Block, BlockRef, ResolvedBlock
+from ....domain.entity import Block, ResolvedBlock
 
 
 @dataclass(frozen=True)
@@ -183,28 +231,51 @@ class DestroyReport:
         return [step.block_id for step in self.steps if not step.destroyed]
 ```
 
-### 3.2b — `_plan` helper and `_ExecutionContext` (internal)
+---
 
-Port `Provisioner.plan` from `block/provisioner.py` as a module-private function.
-`ExecutionContext` is defined here (application layer) as a private class that tracks
-block outputs during the provisioning loop. It is **not** part of the domain.
+## Task 3.3 — `application/services/provisioner/service.py`
 
-`_resolve_inputs` is a helper that converts the domain `inputs` (a `list[OutputReference]`)
-into a `{tfvar_name: value}` dict by looking up outputs from the context. The tfvar name
-computation (`req_key.replace(".", "_")`) lives here, keeping the Terraform naming
-convention out of the domain. `OutputReference` carries the pre-decomposed `output_name`
-and `provider_id` — the application only adds the tfvar renaming step.
+`BlockProvisioningService` owns all provisioning and destroy orchestration.
+Port `Provisioner.provision` and `Provisioner.destroy` from `block/provisioner.py`,
+and `Provisioner.plan` as `build_plan`.
+
+Permitted infrastructure imports (service is the orchestration boundary):
+`BlockRunner` (calls), `ProvisioningResource` (construction). Use relative imports
+within `block_clean`.
+
+`_ExecutionContext` is a private helper class. It tracks block outputs during the
+provisioning loop and computes tfvar names from `OutputReference.requirement_key`.
+The tfvar rename (`replace(".", "_")`) keeps the Terraform naming convention out of
+the domain — `OutputReference` carries the pre-decomposed `output_name` and
+`provider_id`; the service adds the tfvar step.
+
+`BlockRunner.run_init` has a single signature with an optional `extra_vars` parameter
+(Steps 1 and 2 collapsed the old `run_init` / `run_init_with_deps` pair). The
+two-phase init pattern (first without deps in `_prepare_resources`, then again with
+resolved deps inside the loop) is preserved via the optional argument.
 
 ```python
+from __future__ import annotations
+
 from pathlib import Path
 
-from freeloader.block_clean.domain.entity import BlockRef, OutputReference
-from freeloader.block_clean.domain.repository import BlockRepository
-from freeloader.block_clean.domain.resolver import DAGResolver
-from freeloader.block_clean.domain.value_object import BlockId
-from freeloader.block_clean.infrastructure import load_block_repository
-from freeloader.block_clean.infrastructure.runner import BlockRunner
-from freeloader.block_clean.infrastructure.resource import ProvisioningResource
+from freeloader.shared.types import ConfigValue
+
+from ....domain.entity import BlockRef, OutputReference
+from ....domain.repository import BlockRepository
+from ....domain.resolver import DAGResolver
+from ....domain.value_object import BlockId
+from ....infrastructure.resource import ProvisioningResource
+from ....infrastructure.runner import BlockRunner
+
+from .models import (
+    AppliedStepReport,
+    DestroyReport,
+    DestroyStepReport,
+    ProvisioningPlan,
+    ProvisioningReport,
+    ProvisioningStep,
+)
 
 
 class _ExecutionContext:
@@ -227,141 +298,211 @@ class _ExecutionContext:
         return result
 
 
-def _plan(repository: BlockRepository, block_refs: list[BlockRef]) -> ProvisioningPlan:
-    assert block_refs, "At least one block reference must be provided"
-    block_ids = [BlockId(ref.resolved_id) for ref in block_refs]
-    blocks = repository.load_by_ids(block_ids)
-    contracts = {bid: block.contract for bid, block in blocks.items()}
-    resolved_blocks = DAGResolver().resolve(block_refs, contracts)
+class BlockProvisioningService:
+    """Orchestrates block provisioning and destroy flows."""
 
-    return ProvisioningPlan(
-        steps=[
-            ProvisioningStep(block=blocks[rb.id], resolved_block=rb)
-            for rb in resolved_blocks
-        ]
-    )
-```
+    def __init__(self, repository: BlockRepository, runner: BlockRunner) -> None:
+        self._repository = repository
+        self._runner = runner
 
-### 3.2c — `provision_blocks` command
-
-Port `Provisioner.provision` from `block/provisioner.py` as a standalone function.
-Infrastructure objects (`BlockRunner`, `ProvisioningResource`) are constructed inside
-this function — they do not leak to the caller.
-
-```python
-def provision_blocks(
-    resources_root: Path,
-    block_refs: list[BlockRef],
-    runner: BlockRunner,
-) -> ProvisioningReport:
-    repository = load_block_repository()
-    plan = _plan(repository, block_refs)
-    context = _ExecutionContext()
-    resources = _prepare_resources(plan, repository, resources_root, runner)
-    applied_steps: list[AppliedStepReport] = []
-
-    for step in plan.steps:
-        resource = resources[step.id]
-        if step.has_inputs:
-            extra_vars = context.resolve_inputs(step.resolved_block.inputs)
-            runner.run_init(resource, step.resolved_block, extra_vars)
-            runner.run_plan(resource)
-
-        output = runner.run_apply(resource)
-        context.set_outputs(step.id, output)
-        applied_steps.append(
-            AppliedStepReport(
-                block_id=step.id,
-                outputs=output,
-                had_dependency_inputs=step.has_inputs,
-            )
+    def build_plan(self, block_refs: list[BlockRef]) -> ProvisioningPlan:
+        assert block_refs, "At least one block reference must be provided"
+        block_ids = [BlockId(ref.resolved_id) for ref in block_refs]
+        blocks = self._repository.load_by_ids(block_ids)
+        contracts = {bid: block.contract for bid, block in blocks.items()}
+        resolved_blocks = DAGResolver().resolve(block_refs, contracts)
+        return ProvisioningPlan(
+            steps=[
+                ProvisioningStep(block=blocks[rb.id], resolved_block=rb)
+                for rb in resolved_blocks
+            ]
         )
 
-    return ProvisioningReport(plan=plan, applied_steps=applied_steps)
-```
+    def provision(
+        self, resources_root: Path, block_refs: list[BlockRef]
+    ) -> ProvisioningReport:
+        plan = self.build_plan(block_refs)
+        context = _ExecutionContext()
+        resources = self._prepare_resources(plan, resources_root)
+        applied_steps: list[AppliedStepReport] = []
 
-Private helpers `_prepare_resources` and `_plan_resources`:
+        for step in plan.steps:
+            resource = resources[step.id]
+            if step.has_inputs:
+                extra_vars = context.resolve_inputs(step.resolved_block.inputs)
+                self._runner.run_init(resource, step.resolved_block, extra_vars)
+                self._runner.run_plan(resource)
 
-```python
-def _prepare_resources(
-    plan: ProvisioningPlan,
-    repository: BlockRepository,
-    resources_root: Path,
-    runner: BlockRunner,
-) -> dict[str, ProvisioningResource]:
-    resources: dict[str, ProvisioningResource] = {}
-    for step in plan.steps:
-        resource_folder = resources_root / step.id
-        resource = ProvisioningResource(resource_folder)
-        repository.dump_assets(step.block.id, resource.folder)
-        runner.run_init(resource, step.resolved_block)
-        resources[step.id] = resource
-    return resources
-```
+            output = self._runner.run_apply(resource)
+            context.set_outputs(step.id, output)
+            applied_steps.append(
+                AppliedStepReport(
+                    block_id=step.id,
+                    outputs=output,
+                    had_dependency_inputs=step.has_inputs,
+                )
+            )
 
-### 3.2d — `destroy_blocks` command
+        return ProvisioningReport(plan=plan, applied_steps=applied_steps)
 
-Port `Provisioner.destroy` from `block/provisioner.py`:
+    def destroy(
+        self, resources_root: Path, block_refs: list[BlockRef]
+    ) -> DestroyReport:
+        plan = self.build_plan(block_refs)
+        steps: list[DestroyStepReport] = []
 
-```python
-def destroy_blocks(
-    resources_root: Path,
-    block_refs: list[BlockRef],
-    runner: BlockRunner,
-) -> DestroyReport:
-    repository = load_block_repository()
-    plan = _plan(repository, block_refs)
-    steps: list[DestroyStepReport] = []
+        for step in reversed(plan.steps):
+            resource: ProvisioningResource | None = None
+            try:
+                resource_folder = resources_root / step.id
+                resource = ProvisioningResource(resource_folder)
+                self._runner.run_destroy(resource)
+                steps.append(DestroyStepReport(block_id=step.id, destroyed=True))
+            except Exception as e:
+                steps.append(
+                    DestroyStepReport(block_id=step.id, destroyed=False, error=str(e))
+                )
+            finally:
+                if resource is not None:
+                    resource.rm()
 
-    for step in reversed(plan.steps):
-        resource: ProvisioningResource | None = None
-        try:
+        return DestroyReport(plan=plan, steps=steps)
+
+    def _prepare_resources(
+        self,
+        plan: ProvisioningPlan,
+        resources_root: Path,
+    ) -> dict[str, ProvisioningResource]:
+        """Initialize Terraform workspaces for all planned steps (first pass, no deps)."""
+        resources: dict[str, ProvisioningResource] = {}
+        for step in plan.steps:
             resource_folder = resources_root / step.id
             resource = ProvisioningResource(resource_folder)
-            runner.run_destroy(resource)
-            steps.append(DestroyStepReport(block_id=step.id, destroyed=True))
-        except Exception as e:
-            steps.append(DestroyStepReport(block_id=step.id, destroyed=False, error=str(e)))
-        finally:
-            if resource is not None:
-                resource.rm()
+            self._repository.dump_assets(step.block.id, resource.folder)
+            self._runner.run_init(resource, step.resolved_block)
+            resources[step.id] = resource
+        return resources
+```
 
-    return DestroyReport(plan=plan, steps=steps)
+Source: `block/provisioner.py`.
+
+---
+
+## Task 3.4 — `application/services/provisioner/__init__.py`
+
+Re-export the full public surface of the provisioner package.
+
+```python
+from .models import (
+    AppliedStepReport,
+    DestroyReport,
+    DestroyStepReport,
+    ProvisioningPlan,
+    ProvisioningReport,
+    ProvisioningStep,
+)
+from .service import BlockProvisioningService
+
+__all__ = [
+    "AppliedStepReport",
+    "BlockProvisioningService",
+    "DestroyReport",
+    "DestroyStepReport",
+    "ProvisioningPlan",
+    "ProvisioningReport",
+    "ProvisioningStep",
+]
 ```
 
 ---
 
-## Task 3.3 — `application/interface.py`
+## Task 3.5 — `application/services/__init__.py`
+
+Re-export the public surface of the services sub-package.
+
+```python
+from .provisioner import BlockProvisioningService
+
+__all__ = ["BlockProvisioningService"]
+```
+
+---
+
+## Task 3.6 — `application/commands.py`
+
+Thin command functions. Each command accepts only primitives, `Path`, and plain
+domain DTOs — never repository ABCs, infrastructure objects, or service classes.
+Internally it loads repositories/adapters, constructs the runner, wires the service,
+and delegates. No orchestration lives here. Result types are imported from
+`services.provisioner` — `commands.py` defines no dataclasses of its own.
+
+Allowed infrastructure imports: `load_block_repository` and `load_secrets_reader`
+from `..infrastructure`, plus `BlockRunner` from `..infrastructure.runner`
+(constructed internally, not in the signature).
+
+```python
+from pathlib import Path
+
+from ..domain.entity import BlockRef
+from ..infrastructure import load_block_repository, load_secrets_reader
+from ..infrastructure.runner import BlockRunner
+
+from .services.provisioner import BlockProvisioningService, DestroyReport, ProvisioningReport
+
+
+def provision_blocks(
+    project_root: Path,
+    resources_root: Path,
+    block_refs: list[BlockRef],
+) -> ProvisioningReport:
+    repository = load_block_repository()
+    runner = BlockRunner(project_root, load_secrets_reader())
+    service = BlockProvisioningService(repository, runner)
+    return service.provision(resources_root, block_refs)
+
+
+def destroy_blocks(
+    project_root: Path,
+    resources_root: Path,
+    block_refs: list[BlockRef],
+) -> DestroyReport:
+    repository = load_block_repository()
+    runner = BlockRunner(project_root, load_secrets_reader())
+    service = BlockProvisioningService(repository, runner)
+    return service.destroy(resources_root, block_refs)
+```
+
+---
+
+## Task 3.7 — `application/interface.py`
 
 The `Blocks` class is the public facade consumed by other features (currently `project`).
 It replaces both `block/facade.py::BlocksFacade` and the free functions in
 `block/ports/interface.py`.
 
+The facade holds only `project_root` — no secrets object, no runner, no service,
+no repository. It passes primitives and domain DTOs to commands/queries, matching
+their signatures exactly.
+
 ```python
-import os
 from pathlib import Path
 
 from freeloader.shared.types import ConfigValue
 
-from freeloader.block_clean.domain.entity import BlockRef
-from freeloader.block_clean.domain.repository import SecretsReader
-from freeloader.block_clean.infrastructure.runner import BlockRunner
-from freeloader.block_clean.infrastructure.secrets import SecretsAdapter
+from ..domain.entity import BlockRef
 
 from . import commands, queries
-from .commands import DestroyReport, ProvisioningReport
+from .services.provisioner import DestroyReport, ProvisioningReport
 
 
 class Blocks:
-    def __init__(self, project_root: Path, secrets: SecretsReader) -> None:
+    def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
-        self._secrets = secrets
-        self._runner = BlockRunner(project_root, secrets)
 
     @classmethod
     def for_project(cls, project_root: Path) -> "Blocks":
-        """Construct a Blocks facade wired to the default secrets namespace."""
-        return cls(project_root=project_root, secrets=SecretsAdapter())
+        """Construct a Blocks facade scoped to one project root."""
+        return cls(project_root=project_root)
 
     def manifest_configs(
         self,
@@ -370,7 +511,6 @@ class Blocks:
         project_name: str | None = None,
     ) -> dict[str, dict[str, ConfigValue]]:
         return queries.get_manifest_configs(
-            secrets=self._secrets,
             tech_stack=tech_stack,
             full_config=full_config,
             project_name=project_name,
@@ -382,9 +522,9 @@ class Blocks:
         block_refs: list[BlockRef],
     ) -> ProvisioningReport:
         return commands.provision_blocks(
+            project_root=self._project_root,
             resources_root=resources_root,
             block_refs=block_refs,
-            runner=self._runner,
         )
 
     def destroy(
@@ -393,30 +533,31 @@ class Blocks:
         block_refs: list[BlockRef],
     ) -> DestroyReport:
         return commands.destroy_blocks(
+            project_root=self._project_root,
             resources_root=resources_root,
             block_refs=block_refs,
-            runner=self._runner,
         )
 ```
 
 Design notes:
-- `for_project` is the primary constructor for callers. The `__init__` signature
-  accepts an explicit `SecretsReader` to keep the class testable (inject a mock).
-- `BlockRunner` is constructed here because it requires the project path and secrets,
-  both of which are already held by the facade. This matches how `BlocksFacade`
-  worked in the old code.
-- The facade calls `commands` and `queries` as modules (not sub-paths) so tests can
-  monkeypatch `blocks_facade.commands.provision_blocks`.
+- `for_project` is the primary constructor for callers.
+- The facade holds no secrets reader, runner, service, or repository — commands and
+    queries wire infrastructure internally.
+- Result types are imported from `services.provisioner`, not from `commands`,
+  because they live in the service package.
+- The facade calls `commands` and `queries` as modules so tests can monkeypatch
+  `interface.commands.provision_blocks`.
 
 ---
 
-## Task 3.4 — `application/__init__.py`
+## Task 3.8 — `application/__init__.py`
 
-Re-export the public surface of the application layer.
+Re-export the public surface of the application layer. Result types come from
+`services.provisioner`, reflecting where they actually live.
 
 ```python
 from .interface import Blocks
-from .commands import (
+from .services.provisioner import (
     AppliedStepReport,
     DestroyReport,
     DestroyStepReport,
@@ -436,6 +577,8 @@ __all__ = [
 ]
 ```
 
+(No changes from before — all imports here are already relative within `application/`.)
+
 ---
 
 ## Verification
@@ -443,13 +586,16 @@ __all__ = [
 After completing all tasks in this step, confirm:
 
 1. `uv run ruff check src/freeloader/block_clean/application/` reports no errors.
-2. No application file imports a concrete infrastructure class by name
-   (`FileSystemBlockLoader`, `SourceBlock`, `BlockRunner`,`ProvisioningResource`,
-   `SecretsAdapter`) — except `interface.py` which constructs `BlockRunner` and
-   `SecretsAdapter` as a wiring point.
-3. No application file imports from `freeloader.block` (old package).
-4. `from freeloader.block_clean.application import Blocks` works.
-5. `from freeloader.block_clean.application import ProvisioningReport, DestroyReport`
-   works.
-6. Constructing `Blocks.for_project(Path("."))` does not raise (the env var check
-   is deferred to actual method calls).
+2. Import rules by file:
+    - `queries.py` — only `..infrastructure.load_block_repository` and `..infrastructure.load_secrets_reader`; no implementation classes.
+    - `commands.py` — `..infrastructure.load_block_repository`, `..infrastructure.load_secrets_reader`, and `..infrastructure.runner.BlockRunner` (constructed internally); no infra objects in signatures; no dataclasses defined here.
+   - `services/provisioner/models.py` — no infrastructure or application imports; domain types via `....domain`.
+    - `services/provisioner/service.py` — may import `BlockRunner` and `ProvisioningResource` via `....infrastructure`; must not import `FileSystemBlockLoader`, `SourceBlock`, or `SecretsAdapter`.
+    - `interface.py` — no infrastructure imports; no runner, no service, no repository on `self`.
+3. Command signatures accept only `Path` and `list[BlockRef]`. Query signatures accept only plain Python types (`dict[str, str]`, `bool`, `str | None`). No infra, repository, or service objects appear in any public application signature.
+4. Call direction: `interface` → `commands` → `services`. No backwards imports.
+5. All imports within `block_clean` are relative (`..domain`, `..infrastructure`, `....domain`, etc.). `freeloader.shared` stays absolute.
+6. No application file imports from `freeloader.block` (old package).
+7. `from freeloader.block_clean.application import Blocks` works.
+8. `from freeloader.block_clean.application import ProvisioningReport, DestroyReport` works.
+9. Constructing `Blocks.for_project(Path("."))` does not raise (environment and secrets lookup are deferred to actual method calls).

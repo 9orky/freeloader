@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 
 from freeloader.shared.terraform import TerraformResource
 from freeloader.shared.types import ConfigValue
@@ -20,7 +21,9 @@ class BlockRunner:
         extra_vars: dict[str, ConfigValue | None] | None = None,
     ) -> None:
         tfvars = self._variables_builder.build(block, extra_vars)
-        TerraformResource(resource.folder).init(tfvars)
+        TerraformResource(resource.folder).init(
+            cast(dict[str, str | list | dict], tfvars)
+        )
 
     def run_plan(self, resource: ProvisioningResource) -> None:
         TerraformResource(resource.folder).plan()
@@ -39,8 +42,9 @@ def _normalize_outputs(raw: dict | list) -> dict[str, ConfigValue | None]:
         return {}
     result: dict[str, ConfigValue | None] = {}
     for key, entry in raw.items():
-        result[key] = entry["value"] if isinstance(
+        value = entry["value"] if isinstance(
             entry, dict) and "value" in entry else entry
+        result[key] = cast(ConfigValue | None, value)
     return result
 
 
@@ -68,5 +72,10 @@ class VariablesBuilder:
             f.name == "target_folder" for f in block.contract.config)
         if has_target_folder and "target_folder" not in tfvars and self._project_path is not None:
             tfvars["target_folder"] = str(self._project_path)
+
+        if self._project_path is not None:
+            for field in block.contract.config:
+                if field.project_name_default and field.name not in tfvars:
+                    tfvars[field.name] = self._project_path.name
 
         return tfvars

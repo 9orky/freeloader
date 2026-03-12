@@ -35,7 +35,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from freeloader.block_clean.domain.entity import Block
+from ..domain.entity import Block
 
 
 @dataclass(frozen=True)
@@ -70,9 +70,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from freeloader.shared import io
-from freeloader.block_clean.domain.entity import Block, BlockContract
-from freeloader.block_clean.domain.repository import BlockRepository
-from freeloader.block_clean.domain.value_object import BlockId
+from ..domain.entity import Block, BlockContract
+from ..domain.repository import BlockRepository
+from ..domain.value_object import BlockId
 
 from .block import SourceBlock
 
@@ -144,15 +144,6 @@ class FileSystemBlockLoader(BlockRepository):
         )
 ```
 
-Also include a backward-compat convenience method. `BlockId` is already imported at
-the module level — no re-import needed:
-
-```python
-    def load_by_refs(self, block_refs: list) -> dict[str, Block]:
-        block_ids = [BlockId(ref.resolved_id) for ref in block_refs]
-        return self.load_by_ids(block_ids)
-```
-
 Source: `block/infrastructure/loader.py` (restructured).
 
 ---
@@ -167,8 +158,9 @@ paths to `domain/` types. No logic changes except:
 - `VariablesBuilder.build()` accepts `extra_vars: dict[str, ConfigValue | None] | None`
   instead of `ExecutionContext`. Tfvar name computation (`req_key.replace(".", "_")`)
   is now done by the application's `_resolve_inputs` helper (Step 3).
-- The `project_name_default` branch is removed from `VariablesBuilder` — that field
-  no longer exists on `ConfigField`.
+- Keep the `project_name_default` branch in `VariablesBuilder`. The flag remains on
+    `ConfigField`, and provisioning still needs the old behavior of defaulting those
+    fields from `project_path.name` when the caller omitted them.
 
 ```python
 from pathlib import Path
@@ -176,8 +168,8 @@ from pathlib import Path
 from freeloader.shared.terraform import TerraformResource
 from freeloader.shared.types import ConfigValue
 
-from freeloader.block_clean.domain.entity import ResolvedBlock
-from freeloader.block_clean.domain.repository import SecretsReader
+from ..domain.entity import ResolvedBlock
+from ..domain.repository import SecretsReader
 
 from .resource import ProvisioningResource
 
@@ -240,6 +232,11 @@ class VariablesBuilder:
         if has_target_folder and "target_folder" not in tfvars and self._project_path is not None:
             tfvars["target_folder"] = str(self._project_path)
 
+        if self._project_path is not None:
+            for field in block.contract.config:
+                if field.project_name_default and field.name not in tfvars:
+                    tfvars[field.name] = self._project_path.name
+
         return tfvars
 ```
 
@@ -249,27 +246,13 @@ Source: `block/runner.py` — logic is identical, imports are updated.
 
 ## Task 2.4 — `infrastructure/resource.py`
 
-Implement two classes:
-
-1. **`ProvisioningResource`** — ephemeral Terraform workspace for one block during a
-   provisioning run. Step 3 constructs it directly as `ProvisioningResource(folder)`,
-   so no factory class-method is needed.
-
-2. **`FileSystemResourceRepository`** — implements the `ResourceRepository` domain
-   ABC. Manages the collection of all provisioned workspace directories on disk.
-   Folder names use the flat `str(block_id)` form (e.g. `github.remote_repo`),
-   distinct from the nested `sub_path` layout used by the blocks source tree.
+Implement **`ProvisioningResource`** — an ephemeral Terraform workspace for one
+block during a provisioning run. Step 3 constructs it directly as
+`ProvisioningResource(folder)`, so no factory class-method is needed.
 
 ```python
 from pathlib import Path
 from shutil import rmtree
-
-from freeloader.block_clean.domain.entity import ProvisionedResource
-from freeloader.block_clean.domain.repository import ResourceRepository
-from freeloader.block_clean.domain.value_object import BlockId
-
-from .block import SourceBlock
-
 
 class ProvisioningResource:
     """Ephemeral Terraform workspace directory for one block during provisioning."""
@@ -282,54 +265,15 @@ class ProvisioningResource:
     def folder(self) -> Path:
         return self._folder
 
-    def dump_block(self, source_block: SourceBlock) -> None:
-        source_block.dump_assets(self._folder)
-
     def rm(self) -> None:
         if self._folder.is_dir():
             rmtree(self._folder)
-
-
-class FileSystemResourceRepository(ResourceRepository):
-    """Persisted Terraform workspace directory collection on disk.
-
-    Each workspace folder is named by the string form of its `BlockId`
-    (e.g. ``github.remote_repo``), kept flat under `resources_root`.
-    This is separate from the nested ``sub_path`` layout of the blocks source tree.
-    """
-
-    def __init__(self, resources_root: Path) -> None:
-        resources_root.mkdir(parents=True, exist_ok=True)
-        self._root = resources_root
-
-    def create(self, block_id: BlockId) -> ProvisionedResource:
-        (self._root / str(block_id)).mkdir(parents=True, exist_ok=True)
-        return ProvisionedResource(block_id=block_id)
-
-    def get(self, block_id: BlockId) -> ProvisionedResource | None:
-        if (self._root / str(block_id)).is_dir():
-            return ProvisionedResource(block_id=block_id)
-        return None
-
-    def remove(self, block_id: BlockId) -> None:
-        folder = self._root / str(block_id)
-        if folder.is_dir():
-            rmtree(folder)
-
-    def list_all(self) -> list[ProvisionedResource]:
-        result: list[ProvisionedResource] = []
-        for p in self._root.iterdir():
-            if not p.is_dir():
-                continue
-            try:
-                result.append(ProvisionedResource(block_id=BlockId(p.name)))
-            except ValueError:
-                pass  # skip non-block directories (e.g. .DS_Store)
-        return result
 ```
 
 Source: `block/provision/resource.py` (restructured). The `from_block` class-method
-is dropped — callers construct `ProvisioningResource(folder)` directly.
+is dropped — callers construct `ProvisioningResource(folder)` directly. Asset copying
+is performed through `BlockRepository.dump_assets(...)`, so `resource.py` does not
+need to know about `SourceBlock`.
 
 ---
 
@@ -344,7 +288,7 @@ from dataclasses import dataclass, field
 
 from freeloader.secrets.application.interface import Secrets
 
-from freeloader.block_clean.domain.repository import SecretsReader
+from ..domain.repository import SecretsReader
 
 
 @dataclass(frozen=True)
@@ -368,17 +312,17 @@ Source: `block/ports/interface.py::_SecretsAdapter`.
 
 ## Task 2.6 — `infrastructure/__init__.py`
 
-Expose two factory functions — one for each repository contract in the domain.
-Nothing else is re-exported.
+Expose two factory functions — one for block definitions and one for the default
+secrets reader. Nothing else is re-exported.
 
 ```python
 import os
 from pathlib import Path
 
-from freeloader.block_clean.domain.repository import BlockRepository, ResourceRepository
+from ..domain.repository import BlockRepository, SecretsReader
 
 from .loader import FileSystemBlockLoader
-from .resource import FileSystemResourceRepository
+from .secrets import SecretsAdapter
 
 
 def load_block_repository() -> BlockRepository:
@@ -390,14 +334,14 @@ def load_block_repository() -> BlockRepository:
     return FileSystemBlockLoader.init(path)
 
 
-def make_resource_repository(resources_root: Path) -> ResourceRepository:
-    """Wire a FileSystemResourceRepository for the given resources root directory."""
-    return FileSystemResourceRepository(resources_root)
+def load_secrets_reader() -> SecretsReader:
+    """Wire the default SecretsReader for block operations."""
+    return SecretsAdapter()
 ```
 
 `load_block_repository` reads from the environment so application code stays
-environment-agnostic. `make_resource_repository` takes an explicit path because
-the resources root is project-specific and provided by the caller.
+environment-agnostic. `load_secrets_reader` centralizes the default cross-feature
+secrets wiring so application command/query signatures can stay primitive-only.
 
 ---
 
@@ -409,7 +353,6 @@ After completing all tasks in this step, confirm:
 2. None of the infrastructure files import from `freeloader.block_clean.application`.
 3. None import from `freeloader.block` (the old package).
 4. `SourceBlock`, `FileSystemBlockLoader`, `BlockRunner`, `ProvisioningResource`,
-   `FileSystemResourceRepository`, `SecretsAdapter` all import cleanly in a Python REPL.
+   and `SecretsAdapter` all import cleanly in a Python REPL.
 5. `FileSystemBlockLoader` passes an `isinstance` check against `BlockRepository`.
-6. `FileSystemResourceRepository` passes an `isinstance` check against `ResourceRepository`.
-7. `SecretsAdapter` passes an `isinstance` check against `SecretsReader`.
+6. `SecretsAdapter` passes an `isinstance` check against `SecretsReader`.

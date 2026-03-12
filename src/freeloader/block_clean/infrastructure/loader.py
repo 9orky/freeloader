@@ -29,12 +29,6 @@ class FileSystemBlockLoader(BlockRepository):
     def dump_assets(self, block_id: BlockId, target: Path) -> None:
         self._load_source(block_id).dump_assets(target)
 
-    # ── Convenience helper ───────────────────────────────────────────────────
-
-    def load_by_refs(self, block_refs: list) -> dict[str, Block]:
-        block_ids = [BlockId(ref.resolved_id) for ref in block_refs]
-        return self.load_by_ids(block_ids)
-
     # ── Internal helpers ─────────────────────────────────────────────────────
 
     def _scan(self) -> dict[str, SourceBlock]:

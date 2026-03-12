@@ -46,7 +46,12 @@ src/freeloader/<feature>/
 │   ├── __init__.py         # Re-exports: facade class + public use-case functions
 │   ├── interface.py        # Public facade: the machine API for other features
 │   ├── commands.py         # Write operations: create, update, delete
-│   └── queries.py          # Read operations: list, get, check
+│   ├── queries.py          # Read operations: list, get, check
+│   └── services/           # Optional: non-trivial orchestration extracted from commands/queries
+│       └── <name>/         # Each service is a package
+│           ├── __init__.py # Re-exports service class + result types
+│           ├── models.py   # Result dataclasses (owned here, not in commands.py)
+│           └── service.py  # Orchestration class + private helpers
 │
 ├── infrastructure/
 │   ├── __init__.py         # Factory functions only
@@ -108,13 +113,35 @@ This file belongs in `application/` because it has no I/O—it is a pure orchest
 surface that composes the use cases for external callers.
 
 `commands.py` — mutating operations. Each function:
-- Obtains a repository from the factory.
-- Applies domain logic or delegates to the repository.
+- Accepts only primitives (`str`, `int`, `bool`), `Path`, or plain value DTOs
+  (frozen dataclasses). **No ABCs, no infrastructure objects, no service classes
+  in the signature.** Wire everything — repositories, adapters, services — internally.
+- Obtains a repository from the infrastructure factory.
+- For non-trivial orchestration, constructs and calls a service from `services/`.
 - Returns a domain entity, a plain type, or `None`. No DTO wrapper classes.
 
-`queries.py` — read-only operations. Each function:
-- Obtains a repository from the factory.
+`queries.py` — read-only operations. Same signature rule: primitives, `Path`, or
+plain DTOs only. Each function:
+- Obtains a repository from the infrastructure factory.
+- For non-trivial read orchestration, delegates to a service from `services/`.
 - Returns domain entities or plain Python types.
+
+`services/` — optional subpackage for orchestration that is too complex for a
+single command or query function (multi-step loops, intermediate state, coordinating
+multiple infrastructure calls). Each service is its own sub-package:
+- `models.py` — result dataclasses owned by this service (not in `commands.py`).
+- `service.py` — the orchestration class and any private helpers.
+- `__init__.py` — re-exports the service class and its result types.
+
+Commands and queries remain the wiring boundary. They obtain repositories and any
+other concrete collaborators from infrastructure, then pass those already-wired
+objects into the service. A service may depend on feature-local infrastructure
+collaborators that were constructed by its caller, but it must not read environment
+variables, reach into global process state, or instantiate storage implementations
+on its own.
+
+**Call direction within `application/`:** `interface` → `commands/queries` →
+`services`. Services never call commands or queries.
 
 No file in `application/` should contain I/O, rendering logic, or CLI types.
 
@@ -205,7 +232,7 @@ __all__ = ["secrets_app", "Secrets"]
 | Layer             | May import from                                                            |
 |-------------------|----------------------------------------------------------------------------|
 | `domain/`         | stdlib only                                                                |
-| `application/`    | `domain/`, `infrastructure/__init__` (factory functions only)              |
+| `application/`    | `domain/`, `infrastructure/__init__` (factory functions), local `services/` |
 | `infrastructure/` | `domain/`, `freeloader.shared`, third-party libs                          |
 | `ui/`             | `application/` (as a module), `freeloader.shared.console`                 |
 
@@ -213,6 +240,24 @@ __all__ = ["secrets_app", "Secrets"]
 from `ui/` or `infrastructure/` (other than the factory `__init__`). `ui/` importing
 directly from `domain/` or `infrastructure/`. `infrastructure/` importing from
 `application/`.
+
+**Service-package exception.** The rule above is strict for `commands.py`,
+`queries.py`, and `interface.py`. A module inside `application/services/` may also
+import feature-local infrastructure collaborators when those objects are part of the
+orchestration being coordinated and are still wired by the caller. Keep that
+exception narrow: services do not perform factory lookup, environment access, or
+storage discovery themselves.
+
+**Relative imports within a feature package.** All imports between modules inside
+the same feature use relative paths (`from ..domain.entity import X`, not
+`from freeloader.<feature>.domain.entity import X`). Only `freeloader.shared` and
+third-party libraries are imported with absolute paths. This keeps the feature
+package self-contained and refactor-friendly.
+
+**Command and query signatures.** Functions in `commands.py` and `queries.py`
+accept only primitives (`str`, `int`, `bool`), `pathlib.Path`, or plain frozen
+dataclass DTOs. No domain ABCs, no infrastructure objects, and no service classes
+may appear in their signatures. Each function wires all dependencies internally.
 
 Cross-feature calls go through `<feature>.application.interface` only — never
 through internal layers of another feature.

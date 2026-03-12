@@ -5,6 +5,14 @@ Wire the new `block_clean` package into the rest of the codebase, delete the old
 
 **Prerequisite:** Steps 1, 2, and 3 are complete and ruff-clean.
 
+At this point in the refactor, two additional behaviors are already part of the
+intended design and must be preserved during cut-over:
+
+- block catalog discovery defaults to `src/blocks`, with `FREELOADER_BLOCKS` as an
+    override for alternative catalogs
+- manifest generation excludes blocks when required secrets are unavailable or when
+    required tech-stack fields are not available
+
 ---
 
 ## Task 4.1 — Package root `__init__.py`
@@ -100,38 +108,43 @@ Note: each gateway method constructs a fresh `Blocks.for_project()`. If this pro
 expensive (e.g., repeated calls in a hot path), the gateway can cache the facade
 keyed by `project_root`, but do not optimise prematurely.
 
+No gateway-side filtering logic should be added. Manifest filtering for missing auth
+or missing tech stack remains encapsulated in the block feature's application layer.
+
 ---
 
 ## Task 4.3 — Update tests
 
 ### `tests/test_block_provisioner.py`
 
-This test file exercises `Provisioner`, `ExecutionContext`, and related types directly.
-It must be rewritten to test the new `commands.provision_blocks` / `commands.destroy_blocks`
-functions (or the `Provisioner`-equivalent helpers), using the new domain types.
+This test file currently exercises `Provisioner` and `ExecutionContext` directly.
+In the refactor, the orchestration boundary is `application/services/provisioner/`.
+Rewrite this file to test `BlockProvisioningService` directly, and add small wiring
+tests for `application/commands.py` only where needed.
 
 **Import changes required:**
 
 | Old import | New import |
 |---|---|
-| `from freeloader.block.context import ExecutionContext` | `from freeloader.block.domain.entity import ExecutionContext` |
 | `from freeloader.block.contract import BlockContract, BlockMeta` | `from freeloader.block.domain.entity import BlockContract, BlockMeta` |
 | `from freeloader.block.layer import Layer` | `from freeloader.block.domain import Layer` |
-| `from freeloader.block.provisioner import Provisioner` | No direct equivalent — test `commands.provision_blocks` instead |
+| `from freeloader.block.provisioner import Provisioner` | `from freeloader.block.application.services.provisioner import BlockProvisioningService` |
 | `from freeloader.block.resolver import BlockRef, ResolvedBlock` | `from freeloader.block.domain.entity import BlockRef, ResolvedBlock` |
 
 **Behavioral adaptation:**
 
 The old tests inject a `FakeLoader` and `FakeResolver` directly into `Provisioner`.
-In the new architecture, `provision_blocks` calls `load_block_repository()` from the
-infrastructure factory and `DAGResolver` from the domain. There are two approaches:
+In the new architecture, orchestration lives in `BlockProvisioningService`, which is
+constructed directly from a `BlockRepository` and a runner. Use that seam.
 
-**Option A (preferred) — test via the domain function signatures with fake repository:**
+**Option A (preferred) — test the service directly with a fake repository and fake runner:**
 
 ```python
 # Replace Provisioner injection pattern with a fake BlockRepository
-from freeloader.block.domain.repository import BlockRepository, SecretsReader
-from freeloader.block.domain.entity import Block, BlockId, BlockRef, ResolvedBlock, BlockContract, BlockMeta
+from freeloader.block.application.services.provisioner import BlockProvisioningService
+from freeloader.block.domain.repository import BlockRepository
+from freeloader.block.domain.entity import Block, BlockRef, BlockContract, BlockMeta
+from freeloader.block.domain.value_object import BlockId
 from freeloader.block.domain import Layer
 
 class FakeBlockRepository(BlockRepository):
@@ -148,22 +161,32 @@ class FakeBlockRepository(BlockRepository):
         pass  # no-op in tests
 ```
 
-Then patch `freeloader.block.infrastructure.load_block_repository` in the test to
-return the `FakeBlockRepository`.
+Then construct `BlockProvisioningService(fake_repository, fake_runner)` directly.
+The fake runner should record calls to `run_init`, `run_plan`, and `run_apply`,
+including the `extra_vars` passed to dependency re-initialization.
 
-**Option B — keep testing `_plan` helper directly** if it is made importable:
+Important behavioral note: the current `block_clean` implementation performs an
+initial `run_plan()` for every prepared resource, because `run_apply()` still relies
+on the generated `tfplan` file. Dependent blocks then receive a second init/plan pass
+with resolved dependency inputs. Tests should assert that behavior rather than assume
+only dependency-bearing blocks are planned.
+
+**Option B — add a small command wiring test** for `application.commands`:
 
 ```python
-from freeloader.block.application.commands import _plan
+from freeloader.block.application import commands
 ```
 
-This tests the planning logic without needing Terraform runner side effects.
+Patch `commands.load_block_repository`, `commands.load_secrets_reader`, and
+`commands.BlockRunner`, then assert the command wires and delegates correctly.
 
-**Test for `ExecutionContext`** (`test_execution_context_resolves_explicit_input_bindings`)
-does not need a Provisioner at all — update imports only:
+**Replace the old `ExecutionContext` test** with a service-level assertion about
+dependency variable resolution. Example shape:
 
 ```python
-from freeloader.block.domain.entity import ExecutionContext
+# Provision one block that produces an output and one dependent block that requires it.
+# Assert the fake runner receives {"build_url": "https://..."} as extra_vars for the
+# dependent block's second init pass.
 ```
 
 ### `tests/test_blocks.py`
@@ -180,8 +203,48 @@ from freeloader.block.infrastructure.loader import FileSystemBlockLoader
 ```
 
 Any test that constructs a `BlockLoader` should construct a `FileSystemBlockLoader`
-instead. The interface (`load_all`, `load_by_ids`, `dump_assets`) is the same but the
-class name changes.
+instead and use its current API directly:
+
+```python
+loader = FileSystemBlockLoader.init(BLOCKS_ROOT)
+blocks = loader.load_all()
+```
+
+Do not keep relying on the old `all_blocks` property from `BlockLoader`; the new
+loader exposes `load_all()`.
+
+`BLOCKS_ROOT` should continue to point at the repo-local `src/blocks` catalog in tests
+that use the default catalog. Only set `FREELOADER_BLOCKS` in a test when you are
+explicitly verifying alternate-catalog override behavior.
+
+The `contract.tech_stack_field_names` convenience property no longer exists. Update
+tests to compute the check inline using the same field-name set used by the
+application query (`language`, `language_version`, `package_manager`, `framework`).
+
+### `tests/test_block_clean_queries.py`
+
+This focused test file was added during Step 3. Keep it after cut-over, but update its
+imports from `freeloader.block_clean...` to `freeloader.block...`.
+
+It should continue to assert:
+
+- blocks requiring secrets are excluded from manifest configs when those secrets are
+    unavailable
+- blocks requiring tech stack are excluded when the required tech-stack fields are
+    incomplete
+- blocks requiring tech stack are included and hydrated when the required tech-stack
+    fields are present
+
+### `tests/test_block_clean_infrastructure.py`
+
+This focused test file was added after Step 3 to lock down catalog discovery policy.
+Keep it after cut-over, but update its imports from `freeloader.block_clean...` to
+`freeloader.block...`.
+
+It should continue to assert:
+
+- `load_block_repository()` defaults to the repo-local `src/blocks`
+- `FREELOADER_BLOCKS` overrides that default when explicitly set
 
 ### `tests/test_project_feature.py`
 
@@ -234,6 +297,13 @@ Any hit pointing to the old flat-package paths (`block.context`, `block.contract
 `block.resolver`, `block.provisioner`, `block.facade`, `block.ports`, `block.base`,
 `block.layer`, `block.orchestrator`, `block.runner`) must be updated.
 
+Also search for residual `block_clean` references after the rename. These will exist
+in tests and docs unless they are updated deliberately:
+
+```bash
+grep -r "freeloader\.block_clean\." src/ tests/ docs/ --include="*.py" --include="*.md"
+```
+
 Also fix the architecture test if the project contains one that asserts module
 boundaries:
 
@@ -255,6 +325,13 @@ uv run pytest
 
 All tests must pass. Ruff must report zero errors or warnings.
 
+Before running the full suite, ensure the new focused tests introduced during the
+refactor are still included and passing under the renamed package:
+
+```bash
+uv run pytest tests/test_block_provisioner.py tests/test_block_clean_queries.py tests/test_block_clean_infrastructure.py
+```
+
 If any test fails due to the `Provisioner`-style injection pattern being gone, prefer
 updating the test to use the fake-repository approach (Option A in Task 4.3) rather
 than restoring internal class access.
@@ -273,15 +350,15 @@ block_clean/                        → becomes block/ after Task 4.4
 │   ├── value_object.py             Task 1.2  (BlockId)
 │   ├── entity.py                   Task 1.3  (BlockContract hierarchy, Block,
 │   │                                          BlockRef, ResolvedBlock,
-│   │                                          ExecutionContext, OutputReference,
-│   │                                          ResolvedInput)
+│   │                                          OutputReference)
 │   ├── repository.py               Task 1.4  (SecretsReader, BlockRepository)
 │   ├── errors.py                   Task 1.5  (BlockError, DAGError subclasses)
 │   └── resolver.py                 Task 1.6  (ProvidesMapper, TopologicalSorter,
 │                                              DAGResolver)
 │
 ├── infrastructure/
-│   ├── __init__.py                 Task 2.6  (load_block_repository factory)
+│   ├── __init__.py                 Task 2.6  (load_block_repository,
+│   │                                          load_secrets_reader)
 │   ├── block.py                    Task 2.1  (SourceBlock)
 │   ├── loader.py                   Task 2.2  (FileSystemBlockLoader)
 │   ├── runner.py                   Task 2.3  (BlockRunner, VariablesBuilder)
@@ -289,11 +366,17 @@ block_clean/                        → becomes block/ after Task 4.4
 │   └── secrets.py                  Task 2.5  (SecretsAdapter)
 │
 └── application/
-    ├── __init__.py                 Task 3.4
-    ├── interface.py                Task 3.3  (Blocks façade)
-    ├── commands.py                 Task 3.2  (result dataclasses,
-    │                                          provision_blocks, destroy_blocks)
-    └── queries.py                  Task 3.1  (get_manifest_configs)
+    ├── __init__.py                 Task 3.8
+    ├── interface.py                Task 3.7  (Blocks façade)
+    ├── commands.py                 Task 3.6  (provision_blocks,
+    │                                          destroy_blocks)
+    ├── queries.py                  Task 3.1  (get_manifest_configs)
+    └── services/
+        ├── __init__.py             Task 3.5
+        └── provisioner/
+            ├── __init__.py         Task 3.4
+            ├── models.py           Task 3.2
+            └── service.py          Task 3.3
 ```
 
 **Old `block/` files deleted** (all absorbed into the above):
