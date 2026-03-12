@@ -1,10 +1,7 @@
+from freeloader.shared.tech import TECH_STACK_FIELD_NAMES
 from freeloader.shared.types import ConfigValue
 
 from ..infrastructure import load_block_repository, load_secrets_reader
-
-_TECH_STACK_KEYS = frozenset(
-    {"language", "language_version", "package_manager", "framework"}
-)
 
 
 def get_manifest_configs(
@@ -25,7 +22,7 @@ def get_manifest_configs(
             continue
 
         tech_stack_field_names = [
-            field.name for field in contract.config if field.name in _TECH_STACK_KEYS
+            field.name for field in contract.config if field.name in TECH_STACK_FIELD_NAMES
         ]
         if contract.block.required_tech_stack and not _has_required_tech_stack(
             tech_stack_field_names, tech_stack

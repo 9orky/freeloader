@@ -1,9 +1,4 @@
-from .base import SecretsReader
-from .facade import BlocksFacade
-from .resolver.dag import BlockRef
+from .application.interface import Blocks
+from .domain.entity import BlockRef
 
-__all__ = [
-    "BlocksFacade",
-    "BlockRef",
-    "SecretsReader",
-]
+__all__ = ["Blocks", "BlockRef"]

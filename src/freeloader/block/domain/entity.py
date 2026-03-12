@@ -11,10 +11,6 @@ from freeloader.shared.types import ConfigValue
 from . import Layer
 from .value_object import BlockId
 
-_TECH_STACK_KEYS = frozenset(
-    {"language", "language_version", "package_manager", "framework"}
-)
-
 # ---------------------------------------------------------------------------
 # Contract types (ported from block/contract.py)
 # ---------------------------------------------------------------------------

@@ -1,2 +1,0 @@
-class BlockError(Exception):
-    pass

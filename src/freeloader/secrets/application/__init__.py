@@ -1,1 +1,3 @@
-from .interface import Secrets
+from .interface import Secrets as Secrets
+
+__all__ = ["Secrets"]

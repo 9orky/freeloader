@@ -14,11 +14,14 @@ PKG = "freeloader"
 
 _LAYER_RANK: dict[str, int] = {
     "domain": 0,
+    "infrastructure": 1,
     "storage": 1,
+    "adapters": 1,
     "usecases": 2,
-    "application": 3,
-    "ports.interface": 4,
-    "ports.cli": 5,
+    "application": 2,
+    "ui": 3,
+    "ports.interface": 3,
+    "ports.cli": 4,
 }
 
 
@@ -56,7 +59,7 @@ class ArchChecker(ABC):
     def _is_package(self, path: Path) -> bool:
         return path.is_dir() and (path / "__init__.py").exists()
 
-    _SUBSYSTEMS = {"shared", "block"}
+    _SUBSYSTEMS = {"shared", "block_old"}
 
     def _feature_packages(self) -> list[Path]:
         return sorted(d for d in FREELOADER.iterdir() if self._is_package(d) and d.name not in self._SUBSYSTEMS)
@@ -130,7 +133,7 @@ class FeatureIsolationChecker(ArchChecker):
 
     @property
     def description(self) -> str:
-        return "Features may only communicate through application.interface"
+        return "Features may only communicate through package roots or application.interface"
 
     def violations(self) -> list[str]:
         result: list[str] = []
@@ -144,7 +147,7 @@ class FeatureIsolationChecker(ArchChecker):
                     if not (imp == other_pkg or imp.startswith(other_pkg + ".")):
                         continue
                     allowed = f"{other_pkg}.application.interface"
-                    if imp != allowed and not imp.startswith(allowed + "."):
+                    if imp != other_pkg and imp != allowed and not imp.startswith(allowed + "."):
                         result.append(f"{from_mod} -> {imp}")
         return result
 
@@ -179,7 +182,7 @@ class LayerOrderChecker(ArchChecker):
 
     @property
     def description(self) -> str:
-        return "domain < storage < usecases < application < ports.interface < ports.cli"
+        return "domain < infrastructure/storage/adapters < application/usecases < ui/ports.interface < ports.cli"
 
     def violations(self) -> list[str]:
         result: list[str] = []

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from freeloader.block_clean.infrastructure import load_block_repository
-import freeloader.block_clean.infrastructure as infrastructure
+from freeloader.block.infrastructure import load_block_repository
+import freeloader.block.infrastructure as infrastructure
 
 
 def test_load_block_repository_uses_repo_src_blocks_by_default(monkeypatch) -> None:

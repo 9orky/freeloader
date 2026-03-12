@@ -1,8 +1,7 @@
 import dataclasses
 from pathlib import Path
 
-import freeloader.block.ports.interface as block_interface
-from freeloader.block import BlockRef
+from freeloader.block import Blocks, BlockRef
 from freeloader.shared.types import ConfigValue
 
 from ..domain.entities import TechStack
@@ -22,8 +21,8 @@ class BlockSystemGateway(BlockGateway):
             for k, v in dataclasses.asdict(tech_stack).items()
             if v is not None
         }
-        return block_interface.get_manifest_configs(
-            project_root, stack_dict, full_manifest, project_name
+        return Blocks.for_project(project_root).manifest_configs(
+            stack_dict, full_manifest, project_name
         )
 
     def provision(
@@ -32,7 +31,7 @@ class BlockSystemGateway(BlockGateway):
         resources_root: Path,
         block_refs: list[BlockRef],
     ) -> None:
-        block_interface.provision_project(project_root, resources_root, block_refs)
+        Blocks.for_project(project_root).provision(resources_root, block_refs)
 
     def destroy(
         self,
@@ -40,4 +39,4 @@ class BlockSystemGateway(BlockGateway):
         resources_root: Path,
         block_refs: list[BlockRef],
     ) -> None:
-        block_interface.destroy_project(project_root, resources_root, block_refs)
+        Blocks.for_project(project_root).destroy(resources_root, block_refs)

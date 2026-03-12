@@ -1,55 +1,15 @@
 import shutil
-
 from dataclasses import dataclass
 from pathlib import Path
 
-from freeloader.shared import io
-from freeloader.shared.types import ConfigValue
-
-from ..base import BlockId
-from ..contract import BlockContract
+from ..domain.entity import Block
 
 
 @dataclass(frozen=True)
-class Block:
-    folder: Path
-    contract_file: Path
-    terraform_file: Path
+class SourceBlock:
+    block: Block
+    source_folder: Path
 
-    @property
-    def id(self) -> BlockId:
-        block_name = self.folder.name
-        provider_name = self.folder.parent.name
-        return BlockId(f"{provider_name}.{block_name}")
-
-    @property
-    def contract(self) -> BlockContract:
-        return io.load_yaml_model(self.contract_file, BlockContract)
-
-    @property
-    def requires_auth(self) -> bool:
-        return self.contract.config_fields("secrets") != []
-
-    def dump_assets(self, folder: Path) -> None:
-        shutil.copytree(self.folder, folder, dirs_exist_ok=True)
-
-    def dump_config(self, full: bool, project_name: str | None = None) -> dict[str, ConfigValue]:
-        groups = ["basic"]
-        if full:
-            groups.append("advanced")
-
-        return self.contract.collect_defaults(groups, project_name)
-
-    @classmethod
-    def from_folder(cls, folder: Path) -> "Block":
-        contract_file = folder / "block.yml"
-        terraform_file = folder / "main.tf"
-
-        assert contract_file.exists(), f"Contract file not found in {folder}"
-        assert terraform_file.exists(), f"Terraform file not found in {folder}"
-
-        return cls(
-            folder=folder,
-            contract_file=contract_file,
-            terraform_file=terraform_file,
-        )
+    def dump_assets(self, target: Path) -> None:
+        """Copy Terraform source files from the block's folder into `target`."""
+        shutil.copytree(self.source_folder, target, dirs_exist_ok=True)

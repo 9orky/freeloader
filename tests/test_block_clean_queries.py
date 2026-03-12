@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from freeloader.block_clean.application import queries
-from freeloader.block_clean.domain import Layer
-from freeloader.block_clean.domain.entity import Block, BlockContract, BlockMeta, ConfigField
-from freeloader.block_clean.domain.value_object import BlockId
+from freeloader.block.application import queries
+from freeloader.block.domain import Layer
+from freeloader.block.domain.entity import Block, BlockContract, BlockMeta, ConfigField
+from freeloader.block.domain.value_object import BlockId
 
 
 @dataclass(frozen=True)

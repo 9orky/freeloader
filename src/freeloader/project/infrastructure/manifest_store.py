@@ -24,6 +24,7 @@ class _ManifestTechStack(BaseModel):
     language: str | None = None
     language_version: str | None = None
     package_manager: str | None = None
+    framework: str | None = None
 
 
 class _ManifestContract(BaseModel):
@@ -41,11 +42,7 @@ class YamlManifestStore(ManifestRepository):
         assert manifest_path.is_file(
         ), f"Project manifest not found in {folder}"
         contract = io.load_yaml_model(manifest_path, _ManifestContract)
-        tech_stack = TechStack(
-            language=contract.stack.language,
-            language_version=contract.stack.language_version,
-            package_manager=contract.stack.package_manager,
-        )
+        tech_stack = TechStack(**contract.stack.model_dump())
         return Manifest(
             name=contract.project.name,
             tech_stack=tech_stack,
@@ -69,11 +66,7 @@ class YamlManifestStore(ManifestRepository):
         ]
         contract = _ManifestContract.model_validate({
             "project": {"name": name},
-            "stack": {
-                "language": tech_stack.language,
-                "language_version": tech_stack.language_version,
-                "package_manager": tech_stack.package_manager,
-            },
+            "stack": tech_stack.to_dict(),
             "blocks": block_refs,
         })
         io.save_yaml_model(manifest_path, contract)

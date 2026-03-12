@@ -15,10 +15,15 @@ project_app = typer.Typer(
     no_args_is_help=True,
 )
 
+
+def _cwd():
+    return fl.cwd
+
+
 @project_app.command(help="Detect the technology stack for the current project")
 @console.handle_errors
 def detect() -> None:
-    tech_stack = application.detect_stack(fl.cwd)
+    tech_stack = application.detect_stack(_cwd())
     if tech_stack and tech_stack.language:
         console.print_dict(dataclasses.asdict(tech_stack))
         return
@@ -34,7 +39,8 @@ def manage(
         help="Include advanced configuration fields in the manifest",
     ),
 ) -> None:
-    manifest = application.manage_project(fl.cwd.name, fl.cwd, full_manifest)
+    folder = _cwd()
+    manifest = application.manage_project(folder.name, folder, full_manifest)
     view = ManageProjectView(
         tech_stack=dataclasses.asdict(manifest.tech_stack),
         block_configs={ref.use: ref.config for ref in manifest.block_refs},
@@ -45,7 +51,7 @@ def manage(
 @project_app.command(help="Show whether this directory is managed by freeloader")
 @console.handle_errors
 def status() -> None:
-    manifest = application.get_status(fl.cwd)
+    manifest = application.get_status(_cwd())
     if manifest is None:
         view = ProjectStatusView(is_managed=False)
     else:
@@ -63,13 +69,14 @@ def status() -> None:
 @project_app.command(help="Provision project resources from the current manifest")
 @console.handle_errors
 def provision() -> None:
-    application.provision_project(fl.cwd)
-    console.ok(f"Project '{fl.cwd.name}' provisioned successfully.")
-
+    folder = _cwd()
+    application.provision_project(folder)
+    console.ok(f"Project '{folder.name}' provisioned successfully.")
 
 
 @project_app.command(help="Destroy project resources and remove local state")
 @console.handle_errors
 def forget() -> None:
-    application.forget_project(fl.cwd)
-    console.ok(f"Project '{fl.cwd.name}' is not welcome anymore.")
+    folder = _cwd()
+    application.forget_project(folder)
+    console.ok(f"Project '{folder.name}' is not welcome anymore.")

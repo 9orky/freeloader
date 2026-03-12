@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import dataclasses
 import importlib
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from freeloader.cli import app

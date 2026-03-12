@@ -1,8 +1,7 @@
 from pathlib import Path
 
 from ..domain.entity import BlockRef
-from ..infrastructure import load_block_repository, load_secrets_reader
-from ..infrastructure.runner import BlockRunner
+from ..infrastructure import load_block_repository, load_block_runner
 
 from .services.provisioner import (
     BlockProvisioningService,
@@ -17,7 +16,7 @@ def provision_blocks(
     block_refs: list[BlockRef],
 ) -> ProvisioningReport:
     repository = load_block_repository()
-    runner = BlockRunner(project_root, load_secrets_reader())
+    runner = load_block_runner(project_root)
     service = BlockProvisioningService(repository, runner)
     return service.provision(resources_root, block_refs)
 
@@ -28,6 +27,6 @@ def destroy_blocks(
     block_refs: list[BlockRef],
 ) -> DestroyReport:
     repository = load_block_repository()
-    runner = BlockRunner(project_root, load_secrets_reader())
+    runner = load_block_runner(project_root)
     service = BlockProvisioningService(repository, runner)
     return service.destroy(resources_root, block_refs)
