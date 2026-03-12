@@ -1,4 +1,4 @@
-from freeloader.secrets.ports.interface import Secrets
+from freeloader.secrets.infrastructure.interface import Secrets
 
 
 def read_credentials(names: list[str]) -> dict[str, str]:

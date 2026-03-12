@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-DEFAULT_NAMESPACE = "global"
+from . import DEFAULT_NAMESPACE
 
 
 @dataclass(frozen=True)
 class Secret:
     name: str
-    value: str = ""
+    value: str
     namespace: str = DEFAULT_NAMESPACE

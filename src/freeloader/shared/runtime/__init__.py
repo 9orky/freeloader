@@ -6,46 +6,29 @@ from os import getenv
 @dataclass(frozen=True)
 class Freeloader:
     cwd: Path
-    home_folder: Path
-    projects_folder: Path
-    secrets_folder: Path
-    session_folder: Path
 
-    def build_managed_project_path(self, project_name: str) -> Path:
-        return self.projects_folder / project_name
-
-    @classmethod
-    def resolve_home_folder(cls) -> Path:
+    @property
+    def home_folder(self) -> Path:
         home_folder = Path(getenv("FREELOADER_HOME", str(Path.home() / ".freeloader")))
         home_folder.mkdir(parents=True, exist_ok=True)
         return home_folder
 
-    @classmethod
-    def resolve_db_path(cls) -> Path:
-        db_path = Path(getenv("FREELOADER_DB", str(cls.resolve_home_folder() / "freeloader.db")))
-        return db_path
-
-    @classmethod
-    def from_env(cls, cwd: Path) -> "Freeloader":
-        home_folder = cls.resolve_home_folder()
-
-        projects_folder = home_folder / "projects"
-        projects_folder.mkdir(parents=True, exist_ok=True)
-
-        secrets_folder = home_folder / "secrets"
+    @property
+    def secrets_folder(self) -> Path:
+        secrets_folder = self.home_folder / "secrets"
         secrets_folder.mkdir(parents=True, exist_ok=True)
-
-        session_folder = home_folder / "sessions"
+        return secrets_folder
+    
+    @property
+    def session_folder(self) -> Path:
+        session_folder = self.home_folder / "sessions"
         session_folder.mkdir(parents=True, exist_ok=True)
+        return session_folder
 
-        return cls(
-            cwd=cwd,
-            home_folder=home_folder,
-            projects_folder=projects_folder,
-            secrets_folder=secrets_folder,
-            session_folder=session_folder,
-        )
+    @classmethod
+    def from_env(cls, cwd: Path | None = None) -> "Freeloader":
+        if cwd is None:
+            cwd = Path.cwd()
 
-
-def hosts_path() -> Path:
-    return Freeloader.resolve_home_folder() / "hosts"
+        assert cwd.is_dir(), f"Provided path '{cwd}' is not a directory"
+        return cls(cwd=cwd)

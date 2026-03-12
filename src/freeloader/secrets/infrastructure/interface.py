@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from .. import application
-from ..storage import DEFAULT_NAMESPACE
+from ..application import commands, queries
+from ..domain.entity import DEFAULT_NAMESPACE
 
 
 @dataclass(frozen=True)
@@ -10,22 +10,23 @@ class Secrets:
 
     def read_secrets(self, names: list[str]) -> dict[str, str]:
         normalized_names = [self._normalize_name(name) for name in names]
-        return application.read_secrets(normalized_names, self.namespace)
+        return queries.read_secrets(normalized_names, self.namespace)
 
     def write_secret(self, name: str, value: str) -> None:
         normalized_name = self._normalize_name(name)
-        application.write_secret(normalized_name, value, self.namespace)
+        commands.write_secret(normalized_name, value, self.namespace)
 
     def write_secrets(self, values: dict[str, str]) -> None:
         normalized_values = {
             self._normalize_name(name): value
             for name, value in values.items()
         }
-        application.write_secrets(normalized_values, self.namespace)
+        
+        commands.write_secrets(normalized_values, self.namespace)
 
     def has_secrets(self, names: list[str]) -> bool:
         normalized_names = [self._normalize_name(name) for name in names]
-        return application.has_secrets(normalized_names, self.namespace)
+        return commands.has_secrets(normalized_names, self.namespace)
 
     def _normalize_name(self, name: str) -> str:
         return name.strip().lower()

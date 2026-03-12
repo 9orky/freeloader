@@ -1,0 +1,3 @@
+DEFAULT_NAMESPACE = "global"
+
+__all__ = ["DEFAULT_NAMESPACE"]
