@@ -43,3 +43,5 @@ Freeloading often requires composing your infrastructure at Service Providers, w
 Every mentioned component maps to terraform resource. It has source terraform file, yaml config or other required by main.tf assets.
 Terraform source file has variables as input(requires) and output(exposes) as output. There is a concept of a Block, that resolve order of creating resources and coordinate passing inputs or inputs from other resource's outputs.
 
+Canonical shared `requires` and `provides` contracts are documented in `docs/BLOCK_PORT_CONTRACTS.md`.
+

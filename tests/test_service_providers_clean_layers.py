@@ -25,10 +25,13 @@ def test_catalog_loads_expected_provider_drivers() -> None:
         "aws",
         "coolify",
         "docker",
+        "gcp",
         "git",
         "github",
         "gitlab",
+        "render",
         "terraform",
+        "vercel",
     }
 
 
