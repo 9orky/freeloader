@@ -22,16 +22,22 @@ def test_list_command_renders_clean_domain_columns(monkeypatch) -> None:
 
     monkeypatch.setattr(
         service_providers_cli.application,
-        "list_providers",
+        "list_provider_items",
         lambda: [
-            ServiceProvider(
-                name="docker",
-                support=(LocalRequirement("docker"),),
+            service_providers_cli.application.ProviderListItem(
+                provider=ServiceProvider(
+                    name="docker",
+                    support=(LocalRequirement("docker"),),
+                ),
+                authorized=None,
             ),
-            ServiceProvider(
-                name="github",
-                auth=AuthSpec((CredentialKey("GITHUB_TOKEN"),)),
-                billing=BillingSpec(BillingCheckCost.free),
+            service_providers_cli.application.ProviderListItem(
+                provider=ServiceProvider(
+                    name="github",
+                    auth=AuthSpec((CredentialKey("GITHUB_TOKEN"),)),
+                    billing=BillingSpec(BillingCheckCost.free),
+                ),
+                authorized=True,
             ),
         ],
     )
@@ -39,11 +45,35 @@ def test_list_command_renders_clean_domain_columns(monkeypatch) -> None:
     result = CliRunner().invoke(app, ["service-providers", "ls"])
 
     assert result.exit_code == 0
-    assert "Local Support" in result.output
+    assert "Authorized" in result.output
     assert "docker" in result.output
     assert "github" in result.output
     assert "remote" in result.output
     assert "free" in result.output
+    assert "yes" in result.output
+
+
+def test_list_command_marks_missing_credentials_as_not_authorized(monkeypatch) -> None:
+    import freeloader.service_providers.ui.cli as service_providers_cli
+
+    monkeypatch.setattr(
+        service_providers_cli.application,
+        "list_provider_items",
+        lambda: [
+            service_providers_cli.application.ProviderListItem(
+                provider=ServiceProvider(
+                    name="github",
+                    auth=AuthSpec((CredentialKey("GITHUB_TOKEN"),)),
+                ),
+                authorized=False,
+            ),
+        ],
+    )
+
+    result = CliRunner().invoke(app, ["service-providers", "ls"])
+
+    assert result.exit_code == 0
+    assert "no" in result.output
 
 
 def test_auth_command_collects_obtain_steps_and_prompts_remaining_keys(monkeypatch) -> None:

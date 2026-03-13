@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from freeloader.service_providers import ServiceProviders
 from freeloader.service_providers.application import queries
 from freeloader.service_providers.domain import (
+    AuthSpec,
+    CredentialKey,
+    Credentials,
     DriverSupportReport,
     LocalCommand,
     LocalRequirement,
@@ -45,6 +48,23 @@ class FakeCatalog:
             raise UnknownProviderError(normalized_name) from exc
 
 
+@dataclass(frozen=True)
+class FakeCredentialRepository:
+    values: dict[str, str]
+
+    def read_credentials(self, keys: list[CredentialKey]) -> Credentials:
+        return Credentials(
+            {
+                key: self.values[str(key)]
+                for key in keys
+                if str(key) in self.values
+            }
+        )
+
+    def write_credentials(self, credentials: Credentials) -> None:
+        raise AssertionError("write_credentials should not be called")
+
+
 def test_list_providers_returns_catalog_definitions(monkeypatch) -> None:
     monkeypatch.setattr(queries, "load_provider_catalog", lambda: _catalog())
 
@@ -52,6 +72,23 @@ def test_list_providers_returns_catalog_definitions(monkeypatch) -> None:
 
     assert [str(provider.name)
             for provider in providers] == ["docker", "git", "github"]
+
+
+def test_list_provider_items_reports_authorization_state(monkeypatch) -> None:
+    monkeypatch.setattr(queries, "load_provider_catalog", lambda: _catalog())
+    monkeypatch.setattr(
+        queries,
+        "load_credential_repository",
+        lambda: FakeCredentialRepository({"GITHUB_TOKEN": "token"}),
+    )
+
+    items = queries.list_provider_items()
+
+    assert [(str(item.provider.name), item.authorized) for item in items] == [
+        ("docker", None),
+        ("git", None),
+        ("github", True),
+    ]
 
 
 def test_check_block_support_aggregates_missing_local_commands(monkeypatch) -> None:
@@ -94,7 +131,7 @@ def _catalog() -> FakeCatalog:
     )
     github_provider = ServiceProvider(
         name="github",
-        support=(LocalRequirement("gh"),),
+        auth=AuthSpec((CredentialKey("GITHUB_TOKEN"),)),
     )
     return FakeCatalog(
         drivers={

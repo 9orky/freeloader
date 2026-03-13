@@ -42,25 +42,33 @@ def _billing_check_cost(provider) -> str:
 @service_providers_app.command("ls", help="List installed service providers")
 @console.handle_errors
 def list_service_providers() -> None:
-    providers = application.list_providers()
+    provider_items = application.list_provider_items()
     headers = [
         "Name",
         "Requires Auth",
+        "Authorized",
         "Local Support",
         "Supports Billing",
         "Billing Check Cost",
     ]
     rows = [
         [
-            str(provider.name),
-            provider.requires_auth,
-            _support_description(provider),
-            provider.supports_billing,
-            _billing_check_cost(provider),
+            str(item.provider.name),
+            item.provider.requires_auth,
+            _authorization_status(item.authorized),
+            _support_description(item.provider),
+            item.provider.supports_billing,
+            _billing_check_cost(item.provider),
         ]
-        for provider in providers
+        for item in provider_items
     ]
     console.print_table("Installed Providers", headers, rows)
+
+
+def _authorization_status(authorized: bool | None) -> str:
+    if authorized is None:
+        return "-"
+    return "yes" if authorized else "no"
 
 
 @service_providers_app.command(help="Validate and store provider credentials")
