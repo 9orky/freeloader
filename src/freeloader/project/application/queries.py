@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ..domain.entities import Manifest, TechStack
+from ..domain.entity import Manifest, TechStack
 from ..infrastructure import load_manifest_repository, load_tech_stack_detector
 
 

@@ -95,6 +95,32 @@ def test_manifest_configs_applies_required_tech_stack_when_available(monkeypatch
     assert configs["docker.dockerfile"]["framework"] == "fastapi"
 
 
+def test_manifest_configs_do_not_filter_by_provider_support(monkeypatch) -> None:
+    blocks = {
+        "docker.dockerfile": _make_block(
+            "docker.dockerfile",
+            [ConfigField(name="language")],
+        ),
+        "git.local_repo": _make_block(
+            "git.local_repo",
+            [ConfigField(name="visibility")],
+        ),
+    }
+
+    monkeypatch.setattr(queries, "load_block_repository",
+                        lambda: FakeRepository(blocks))
+    monkeypatch.setattr(
+        queries,
+        "load_secrets_reader",
+        lambda: FakeSecretsReader(available=set()),
+    )
+
+    configs = queries.get_manifest_configs(tech_stack={}, full_config=False)
+
+    assert "docker.dockerfile" in configs
+    assert "git.local_repo" in configs
+
+
 def _make_block(
     block_id: str,
     config_fields: list[ConfigField],

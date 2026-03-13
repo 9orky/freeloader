@@ -41,7 +41,7 @@ def test_manage_command_calls_application_and_renders_result(
 ) -> None:
     import freeloader.project.ui.cli as project_cli
     from freeloader.block import BlockRef
-    from freeloader.project.domain.entities import Manifest, TechStack
+    from freeloader.project.domain.entity import Manifest, TechStack
 
     captured: list[dict] = []
 
@@ -73,13 +73,96 @@ def test_manage_command_calls_application_and_renders_result(
     assert captured[0]["block_configs"]["github/actions_ci"]["name"] == "demo"
 
 
+def test_manage_project_filters_block_configs_via_service_providers(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import freeloader.project.application.commands as commands
+    from freeloader.block import BlockRef
+    from freeloader.project.domain.entity import Manifest, TechStack
+
+    saved_block_configs: dict[str, dict[str, str]] = {}
+    support_calls: list[list[str]] = []
+
+    class FakeManifestRepository:
+        def manifest_exists(self, folder: Path) -> bool:
+            assert folder == tmp_path
+            return False
+
+        def save(
+            self,
+            name: str,
+            folder: Path,
+            tech_stack: TechStack,
+            block_configs: dict[str, dict[str, str]],
+        ) -> None:
+            assert name == tmp_path.name
+            assert folder == tmp_path
+            assert tech_stack.language == "python"
+            saved_block_configs.update(block_configs)
+
+        def load(self, folder: Path) -> Manifest:
+            assert folder == tmp_path
+            return Manifest(
+                name=folder.name,
+                tech_stack=TechStack(language="python"),
+                block_refs=tuple(
+                    BlockRef.model_validate(
+                        {"use": ref_name, "config": config})
+                    for ref_name, config in saved_block_configs.items()
+                ),
+            )
+
+    class FakeTechStackDetector:
+        def detect(self, folder: Path) -> TechStack:
+            assert folder == tmp_path
+            return TechStack(language="python")
+
+    class FakeBlockGateway:
+        def get_manifest_configs(
+            self,
+            project_root: Path,
+            tech_stack: TechStack,
+            full_manifest: bool,
+            project_name: str | None,
+        ) -> dict[str, dict[str, str]]:
+            assert project_root == tmp_path
+            assert tech_stack.language == "python"
+            assert full_manifest is False
+            assert project_name == tmp_path.name
+            return {
+                "docker.dockerfile": {"language": "python"},
+                "docker.dockerignore": {"include": ".env"},
+                "git.local_repo": {"visibility": "private"},
+            }
+
+    class FakeServiceProviders:
+        def is_block_supported(self, driver_names: list[str]) -> bool:
+            support_calls.append(driver_names)
+            return driver_names != ["docker"]
+
+    monkeypatch.setattr(commands, "load_manifest_repository",
+                        lambda: FakeManifestRepository())
+    monkeypatch.setattr(commands, "load_tech_stack_detector",
+                        lambda: FakeTechStackDetector())
+    monkeypatch.setattr(commands, "load_block_gateway",
+                        lambda: FakeBlockGateway())
+    monkeypatch.setattr(commands, "ServiceProviders",
+                        lambda: FakeServiceProviders())
+
+    manifest = commands.manage_project(tmp_path.name, tmp_path)
+
+    assert saved_block_configs == {"git.local_repo": {"visibility": "private"}}
+    assert [ref.use for ref in manifest.block_refs] == ["git.local_repo"]
+    assert support_calls == [["docker"], ["git"]]
+
+
 def test_provision_project_events_loads_manifest_and_forwards_iterator(
     monkeypatch, tmp_path: Path
 ) -> None:
     import freeloader.project.application.commands as commands
     from freeloader.block import BlockRef, ProvisioningFinished
     from freeloader.block.domain.provisioning import ProvisioningPlan, ProvisioningReport
-    from freeloader.project.domain.entities import Manifest, TechStack
+    from freeloader.project.domain.entity import Manifest, TechStack
 
     block_ref = BlockRef.model_validate(
         {"use": "github/actions_ci", "config": {"name": "demo"}}
@@ -181,7 +264,7 @@ def test_status_command_renders_unmanaged(monkeypatch, tmp_path: Path) -> None:
 def test_status_command_renders_managed(monkeypatch, tmp_path: Path) -> None:
     import freeloader.project.ui.cli as project_cli
     from freeloader.block import BlockRef
-    from freeloader.project.domain.entities import Manifest, TechStack
+    from freeloader.project.domain.entity import Manifest, TechStack
 
     captured: list[dict] = []
     fake_manifest = Manifest(

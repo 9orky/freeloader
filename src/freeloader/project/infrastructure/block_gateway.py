@@ -5,7 +5,7 @@ from pathlib import Path
 from freeloader.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef, Blocks
 from freeloader.shared.types import ConfigValue
 
-from ..domain.entities import TechStack
+from ..domain.entity import TechStack
 from ..domain.repository import BlockGateway
 
 

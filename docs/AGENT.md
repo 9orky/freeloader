@@ -53,6 +53,7 @@ Make the smallest correct change that fully solves the task, fits the existing a
 ### 6. Test What You Change
 
 - Add or update tests when behavior changes, a bug is fixed, or new branching logic is introduced.
+- Tests validate behavior and architecture; they must not drive production structure or imports.
 - Run targeted validation first, then broader checks if the change is cross-cutting.
 - Use the repository toolchain: `uv run pytest` and `uv run ruff check`.
 - If you cannot run validation, state that clearly.

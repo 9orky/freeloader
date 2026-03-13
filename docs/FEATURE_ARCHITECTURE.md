@@ -1,384 +1,106 @@
 # Feature Architecture Guide
 
-This document describes the layered architecture used for features in Freeloader
-and explains how to create new features or migrate existing ones to this pattern.
-The **secrets** feature is the canonical reference implementation.
+Freeloader features are already migrated. This guide describes the steady-state contract only.
 
----
+## Core Rules
 
-## Overview
+1. Package root is the only cross-feature entrypoint.
+   - Other features import `freeloader.<feature>` only.
+   - Imports like `freeloader.<feature>.application`, `freeloader.<feature>.domain`, `freeloader.<feature>.infrastructure`, and `freeloader.<feature>.ui` are forbidden outside that feature.
+   - A feature package root exposes at most two names through `__all__`: the CLI app (`<feature>_app`) and the machine-facing facade from `application/interface.py`. A feature may export one or both. Nothing else.
 
-Every feature is a self-contained Python package under `src/freeloader/<feature>/`.
-It owns all the code for one coherent capability—domain rules, use cases, storage,
-machine API, and CLI—without spilling into other feature packages.
+2. Layer direction is fixed.
 
-The package is divided into four layers. Each layer has a single responsibility and
-must follow the allowed import directions documented below.
+   ```
+   ui/ (optional)        -> application/
+   application/          -> infrastructure/ and domain/
+   infrastructure/       -> domain/
+   domain/               -> stdlib and freeloader.shared only
+   ```
 
-```
-ui/               → application/
-application/      → infrastructure/ and domain/
-infrastructure/   → domain/
-domain/           → stdlib only
-```
+3. Optional layers are normal.
+   - Omit `ui/` for machine-only features.
+   - Omit `application/interface.py` when the feature has no cross-feature machine API.
 
-Read the arrows as import direction, not runtime control flow. In practice:
+4. `application/__init__.py` is the feature-local import surface for UI code.
+   - `ui/cli.py` imports the `application` package as a module and calls `application.<function>()`.
+   - `application/__init__.py` re-exports the use-case functions the UI needs, plus the optional facade.
+   - Cross-feature callers do not use this module; they go through the feature package root.
 
-- `ui/` may import `application/`
-- `application/` may import `domain/` and the feature-local infrastructure wiring
-- `infrastructure/` may import `domain/`
-- `domain/` imports nothing from the rest of the feature
+5. Relative imports stay shallow.
+   - Use `.` and `..` inside a feature when the target is nearby.
+   - If `...` or deeper would be required, switch to `freeloader.<feature>...`.
 
-There is no root-level `models.py` and no `ports/` directory. Application functions
-return domain entities or plain Python types directly. Presentation-only shapes
-belong in `ui/views.py`. The machine API used by other features lives in
-`application/interface.py` and is re-exported through the package `__init__.py`.
+6. Legacy layer names are gone.
+   - Do not add `adapters/`, `ports/`, `storage/`, or `usecases/`.
 
----
+## Layout
 
-## Directory Layout
-
-```
+```text
 src/freeloader/<feature>/
-│
-├── __init__.py             # Re-exports: CLI app + public facade
-│
+├── __init__.py          # cross-feature surface; exports app and/or facade only
 ├── domain/
-│   ├── __init__.py         # Domain-level constants (e.g., DEFAULT_NAMESPACE)
-│   ├── entity.py           # Core domain objects (frozen dataclasses)
-│   ├── value_object.py     # Typed wrappers for primitive concepts
-│   └── repository.py       # Abstract base classes for storage contracts
-│
+│   ├── __init__.py      # domain constants only
+│   ├── entity.py        # entities and domain models
+│   ├── value_object.py  # typed wrappers for primitives
+│   ├── repository.py    # abstract repository contracts
+│   └── ...
 ├── application/
-│   ├── __init__.py         # Re-exports: facade class + public use-case functions
-│   ├── interface.py        # Public facade: the machine API for other features
-│   ├── commands.py         # Write operations: create, update, delete
-│   ├── queries.py          # Read operations: list, get, check
-│   └── services/           # Optional: non-trivial orchestration extracted from commands/queries
-│       └── <name>/         # Each service is a package
-│           ├── __init__.py # Re-exports service class + result types
-│           ├── models.py   # Result dataclasses (owned here, not in commands.py)
-│           └── service.py  # Orchestration class + private helpers
-│
+│   ├── __init__.py      # UI import surface; re-exports use cases and optional facade
+│   ├── commands.py      # write use cases
+│   ├── queries.py       # read use cases
+│   ├── interface.py     # optional machine API for other features
+│   └── services/        # optional orchestration, flat module or package
 ├── infrastructure/
-│   ├── __init__.py         # Factory functions only
-│   └── <impl>.py           # Concrete repository implementations
-│
-└── ui/
+│   ├── __init__.py      # load_* factories only
+│   └── ...              # concrete storage / external-system implementations
+└── ui/                  # optional
     ├── __init__.py
-    ├── cli.py              # Typer app: commands wired to the application module
-    └── views.py            # Presentation-only shapes (optional)
+    ├── cli.py           # Typer wiring only
+    └── views.py         # optional presentation-only shapes
 ```
 
----
+## Package Root
 
-## Layer Responsibilities
+- `src/freeloader/<feature>/__init__.py` is minimal.
+- Re-export only `<feature>_app` and/or the facade class.
+- Do not re-export domain entities, events, reports, repositories, or application functions.
+- Same-feature internals should not route through the package root.
 
-### `domain/`
+## Domain
 
-The innermost layer. Has **no imports from the rest of the project**. It contains:
+- Domain code imports only the standard library, local `domain/` modules, and feature-neutral modules from `freeloader.shared`.
+- Keep entities and value objects immutable unless mutability is a real domain requirement.
+- Repository contracts are abstract base classes defined in `domain/repository.py`.
+- Any model shared across layers belongs in the lowest layer that owns its meaning, usually `domain/`.
+- If a type already has a cross-feature source of truth in `freeloader.shared` such as `shared.types` or `shared.tech`, domain code uses that shared model instead of duplicating it locally.
 
-- **Entities** — frozen dataclasses representing core concepts. They carry identity
-  and validate invariants in `__post_init__` when needed.
-- **Value objects** — frozen dataclasses wrapping primitives to add type safety
-  and semantics (e.g., `Password` instead of `str`).
-- **Repository interfaces** — `abc.ABC` classes that declare what storage
-  operations the feature needs. They reference only domain types. The concrete
-  implementation is provided by the infrastructure layer.
-- **Constants** — domain-scoped constants (e.g., default namespaces) placed in
-  `__init__.py` so they are importable by all layers without a deeper path.
+## Application
 
-```
-secrets example
-───────────────
-domain/__init__.py     → DEFAULT_NAMESPACE = "global"
-domain/entity.py       → Secret(name, value, namespace)
-domain/value_object.py → Password(value)
-domain/repository.py   → abstract SecretRepository, abstract SessionRepository
-```
+- `commands.py` handles writes; `queries.py` handles reads.
+- Public signatures use primitives, `Path`, or plain frozen dataclasses. Do not expose repository ABCs, infrastructure implementations, or service classes in command/query signatures.
+- Commands and queries obtain dependencies from `infrastructure/__init__.py`.
+- `interface.py` is optional. When present, it is a thin facade for other features: normalize inputs, keep context, delegate to commands and queries, and do no I/O.
+- `services/` is optional. Use it for orchestration that is too large for one command or query.
+- Service modules may depend on feature-local infrastructure collaborators only when the caller already wired those collaborators. Services do not perform factory lookup, environment access, or storage discovery.
 
-### `application/`
+## Infrastructure
 
-The use-case layer. It orchestrates domain objects and storage, but **never talks
-directly to files, network, or environment variables**. It does that indirectly
-by calling the infrastructure factory to obtain a repository instance.
+- Infrastructure implements repository contracts and other external-system adapters.
+- Public wiring lives in `infrastructure/__init__.py` as `load_*` factories.
+- Implementation modules do not own public factory functions.
 
-For pragmatic simplicity (no full DI framework), use-case functions call
-`load_X_repository()` from the infrastructure `__init__.py` to get a concrete
-repository. This keeps the layer thin while avoiding global state.
+## UI
 
-`interface.py` — the public facade used by other features. The facade:
-- Holds enough context to scope calls (e.g., a namespace string).
-- Delegates every operation to `commands` / `queries` in the same layer.
-- Normalizes inputs (e.g., strips and lowercases key names) so callers don't need
-  to know about internal conventions.
-- Provides `@classmethod` constructors for common configurations (e.g.,
-  `for_default_namespace()`).
-- Contains **no I/O** and **no business logic** of its own.
-
-This file belongs in `application/` because it has no I/O—it is a pure orchestration
-surface that composes the use cases for external callers.
-
-`commands.py` — mutating operations. Each function:
-- Accepts only primitives (`str`, `int`, `bool`), `Path`, or plain value DTOs
-  (frozen dataclasses). **No ABCs, no infrastructure objects, no service classes
-  in the signature.** Wire everything — repositories, adapters, services — internally.
-- Obtains a repository from the infrastructure factory.
-- For non-trivial orchestration, constructs and calls a service from `services/`.
-- Returns a domain entity, a plain type, or `None`. No DTO wrapper classes.
-
-`queries.py` — read-only operations. Same signature rule: primitives, `Path`, or
-plain DTOs only. Each function:
-- Obtains a repository from the infrastructure factory.
-- For non-trivial read orchestration, delegates to a service from `services/`.
-- Returns domain entities or plain Python types.
-
-`services/` — optional subpackage for orchestration that is too complex for a
-single command or query function (multi-step loops, intermediate state, coordinating
-multiple infrastructure calls). Each service is its own sub-package:
-- `models.py` — result dataclasses owned by this service (not in `commands.py`).
-- `service.py` — the orchestration class and any private helpers.
-- `__init__.py` — re-exports the service class and its result types.
-
-If a model must be imported by `domain/`, `infrastructure/`, or another feature,
-it is not service-owned and does not belong in `application/services/<name>/models.py`.
-Place shared models in the lowest layer that owns their meaning, usually `domain/`.
-
-Commands and queries remain the wiring boundary. They obtain repositories and any
-other concrete collaborators from infrastructure, then pass those already-wired
-objects into the service. A service may depend on feature-local infrastructure
-collaborators that were constructed by its caller, but it must not read environment
-variables, reach into global process state, or instantiate storage implementations
-on its own.
-
-**Call direction within `application/`:** `interface` → `commands/queries` →
-`services`. Services never call commands or queries.
-
-No file in `application/` should contain I/O, rendering logic, or CLI types.
-
-```
-secrets example
-───────────────
-interface.py → Secrets(namespace)
-                .read_secrets(names)       delegates to queries.read_secrets()
-                .write_secret(name, value)  delegates to commands.write_secret()
-                .write_secrets(values)      delegates to commands.write_secrets()
-                .has_secrets(names)         delegates to commands.has_secrets()
-                .for_default_namespace()    classmethod constructor
-commands.py  → write_secret(), write_secrets(), remove_secret(), has_secrets()
-queries.py   → list_secrets(), reveal_secrets(), read_secrets()
-```
-
-### `infrastructure/`
-
-The concrete I/O layer. Its sole responsibility is **storage implementations**:
-classes that extend the abstract repositories from `domain/repository.py`. They
-may use stdlib I/O, third-party libraries, and `freeloader.shared` utilities.
-Each implementation file contains one class that inherits from the corresponding
-abstract repository and fully implements all abstract methods.
-
-`__init__.py` exposes the factory function(s) that construct and wire together the
-concrete implementations. It does **not** re-export the facade — that lives in
-`application/__init__.py`.
-
-```
-secrets example
-───────────────
-infrastructure/__init__.py  → load_secret_repository() wires SecretSession + SecretVault
-infrastructure/vault.py     → SecretVault(SecretRepository) — encrypted file storage
-infrastructure/session.py   → SecretSession(SessionRepository) — password cache file
-```
-
-### `ui/`
-
-The CLI layer. It wires Typer commands to the application layer. It has **no
-business logic** of its own—that goes in the application layer.
-
-`cli.py` — defines a `typer.Typer()` instance named `<feature>_app`. Each command:
-- Parses arguments and options using Typer's declarative API.
-- Calls `application.<function>(...)` for all work.
-- Uses `freeloader.shared.console` for output (`typer.echo`, `console.ok`, etc.).
-- Is decorated with `@console.handle_errors` for consistent error formatting.
-
-`cli.py` imports the **`application` module as a whole**, not its sub-modules
-(`commands`, `queries`) individually. This makes the CLI easily testable: tests
-monkeypatch `secrets_cli.application.write_secret` rather than patching a
-sub-module path.
-
-`views.py` — optional. Contains Pydantic dataclasses for data shapes that exist
-only for structured rendering in the CLI (e.g., multi-column table rows). Do not
-add views if plain text output suffices.
-
-```
-secrets example
-───────────────
-ui/cli.py    → secrets_app (Typer)
-               ls, reveal, add, remove commands
-               each calls application.list_secrets(), application.write_secret(), etc.
-ui/views.py  → SecretView(name, value, namespace)
-```
-
----
-
-## `__init__.py`
-
-The public face of the feature package. It re-exports:
-- The CLI Typer instance (mounted in `freeloader/cli.py`).
-- The public facade class from `application/interface.py` (used by other features).
-
-Keep it minimal. Do not re-export internal types or implementation details.
-
-```python
-# secrets example
-from .ui.cli import secrets_app
-from .application import Secrets
-
-__all__ = ["secrets_app", "Secrets"]
-```
-
----
-
-## Dependency Rules Summary
-
-| Layer             | May import from                                                            |
-|-------------------|----------------------------------------------------------------------------|
-| `domain/`         | stdlib only                                                                |
-| `application/`    | `domain/`, `infrastructure/__init__` (factory functions), local `services/` |
-| `infrastructure/` | `domain/`, `freeloader.shared`, third-party libs                          |
-| `ui/`             | `application/` (as a module), `freeloader.shared.console`                 |
-
-**Allowed import directions inside one feature:** `ui -> application`,
-`application -> infrastructure`, `application -> domain`, `infrastructure -> domain`.
-
-**Forbidden:** `domain/` importing from any other layer. `application/` importing
-from `ui/` or concrete infrastructure modules outside the approved wiring surface.
-`ui/` importing directly from `domain/` or `infrastructure/`. `infrastructure/`
-importing from `application/` or `ui/`.
-
-**Service-package exception.** The rule above is strict for `commands.py`,
-`queries.py`, and `interface.py`. A module inside `application/services/` may also
-import feature-local infrastructure collaborators when those objects are part of the
-orchestration being coordinated and are still wired by the caller. Keep that
-exception narrow: services do not perform factory lookup, environment access, or
-storage discovery themselves.
-
-**Relative imports within a feature package.** Relative imports may target the
-same package or the direct parent package only (`.` and `..`). Do not climb above
-the parent folder with `...` or deeper relative imports. If a module would need to
-go higher than its parent folder, switch to a feature-root absolute import such as
-`from freeloader.<feature>.domain.entity import X`. Use absolute imports for
-`freeloader.shared`, third-party libraries, and any deeper intra-feature jump that
-would otherwise require `...` or `....`. This keeps nested packages readable and
-avoids brittle dot-counting imports.
-
-**Command and query signatures.** Functions in `commands.py` and `queries.py`
-accept only primitives (`str`, `int`, `bool`), `pathlib.Path`, or plain frozen
-dataclass DTOs. No domain ABCs, no infrastructure objects, and no service classes
-may appear in their signatures. Each function wires all dependencies internally.
-
-Cross-feature calls go through `<feature>.application.interface` only — never
-through internal layers of another feature.
-
----
-
-## Creating a New Feature
-
-1. **Define the domain.** Start with `domain/entity.py` and `domain/value_object.py`.
-   Write plain frozen dataclasses. No I/O, no imports from outside the domain.
-
-2. **Define the repository contract.** In `domain/repository.py`, write an abstract
-   base class for each storage boundary the feature needs. Declare only the methods
-   the use cases will call.
-
-3. **Write the use cases.** In `application/commands.py` and `application/queries.py`,
-   implement the feature's behavior as plain functions. Each function obtains a
-   repository from the infrastructure factory and performs exactly one action.
-   Return domain entities or plain types — no wrapper DTOs.
-
-4. **Implement the infrastructure.** In `infrastructure/<impl>.py`, write a concrete
-   class that extends the abstract repository. In `infrastructure/__init__.py`, write
-   the factory function(s) that construct and return the correct implementation.
-
-5. **Expose the machine API.** In `application/interface.py`, write the facade
-   class used by other features. One method per application function. Normalize
-   inputs. Delegate to `commands` / `queries` in the same package. Re-export the
-   facade from `application/__init__.py` and the package `__init__.py`.
-
-6. **Wire the CLI.** In `ui/cli.py`, create the Typer app. Each command imports and
-   calls `application.<function>()`. Decorate with `@console.handle_errors`. Add
-   `ui/views.py` only if structured presentation shapes are needed.
-
-7. **Wire the package.** In `__init__.py`, re-export the Typer app and the facade.
-   Mount the Typer app in `freeloader/cli.py`.
-
-8. **Test each layer independently.** Write tests in `tests/test_<feature>.py`.
-   Unit-test application functions by monkeypatching the infrastructure factory.
-   Unit-test the facade by monkeypatching application functions on the module object.
-   Integration-test the CLI using `typer.testing.CliRunner`.
-
----
-
-## Migrating an Existing Feature
-
-Features using the older flat layout (`application.py`, `models.py`, `cli.py`,
-`adapters/`, `usecases/`) should be migrated in this sequence to minimize breakage:
-
-1. **Add `domain/`.** Extract entity dataclasses from `models.py` into
-   `domain/entity.py`. Extract abstract repository contracts (if any exist in
-   adapters) into `domain/repository.py`. Keep the rest of `models.py` intact
-   for now.
-
-2. **Rename `usecases/` to `application/`.** Split the use-case functions into
-   `commands.py` (writes) and `queries.py` (reads). Adjust imports.
-
-3. **Rename `adapters/` to `infrastructure/`.** For each adapter, identify which
-   domain repository interface it satisfies. Make it explicitly extend the abstract
-   class. Add a factory function in `infrastructure/__init__.py`.
-
-4. **Remove `models.py`.** Move domain entities into `domain/`. Move any
-   presentation shapes into `ui/views.py`. Delete the file. Update all imports.
-
-5. **Add `application/interface.py`.** If other features import from this feature
-   directly, introduce the facade here and redirect those imports to the package
-   root (which re-exports it from `__init__.py`).
-
-6. **Add `ui/` directory.** Move `cli.py` into `ui/cli.py`. Update it to import
-   the `application` module as a whole, not `commands`/`queries` individually.
-   Move any presentation models into `ui/views.py`.
-
-7. **Update `__init__.py`.** Re-export only the Typer app and the facade.
-
-8. **Update tests.** Patch `<feature>_cli.application.<function>` instead of
-   internal sub-modules. Update import paths for any moved types.
-
-Do this one feature at a time. Do not restructure multiple features in one commit.
-
----
+- `ui/cli.py` contains Typer wiring only.
+- Import the feature `application` package as a module, not `commands.py` or `queries.py` directly.
+- UI does not import feature `domain/` or `infrastructure/`.
+- Presentation-only data shapes belong in `ui/views.py`.
 
 ## Testing Conventions
 
-- **Application layer** — patch `infrastructure.__init__.load_X_repository` to inject
-  a mock. Assert that the function calls the repository correctly and returns the
-  expected value.
-- **Infrastructure facade** — patch `application.<function>` directly on the module
-  object. Test normalization logic (e.g., name stripping/lowercasing).
-- **CLI** — use `typer.testing.CliRunner`. Patch `<module>.application.<function>` on
-  the cli module to avoid touching real storage. Assert on exit code and captured
-  output.
-- **Infrastructure storage** — test with a real filesystem using `tmp_path` fixtures.
-  Do not mock I/O inside these tests; exercise the actual file operations.
-
----
-
-## Naming Conventions
-
-| Concept              | Convention                                      | Example                  |
-|----------------------|-------------------------------------------------|--------------------------|
-| Feature package      | singular noun                                   | `secrets`, `project`     |
-| Domain entity        | singular noun, PascalCase                       | `Secret`, `Project`      |
-| Repository interface | `<Entity>Repository` (abstract)                 | `SecretRepository`       |
-| Infrastructure class | `<Entity><Backend>` (concrete)                  | `SecretVault`            |
-| Public facade        | feature noun, PascalCase                        | `Secrets`                |
-| View shape (CLI)     | `<Entity>View`                                  | `SecretView`             |
-| Typer instance       | `<feature>_app`                                 | `secrets_app`            |
-| Factory function     | `load_<entity>_repository()`                    | `load_secret_repository` |
+- Application tests patch `feature.infrastructure.load_*` factories.
+- Facade tests patch functions on `feature.application`.
+- CLI tests patch `feature.ui.cli.application.<function>`.
+- Cross-feature tests import through feature package roots, never through deeper feature modules.
+- Architecture tests enforce the rules in this document; production code should not be reshaped just to accommodate a test patch path.

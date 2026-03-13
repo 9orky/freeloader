@@ -2,7 +2,7 @@ from pathlib import Path
 
 from freeloader.shared.tech import TechFacade
 
-from ..domain.entities import TechStack
+from ..domain.entity import TechStack
 from ..domain.repository import TechStackDetector
 
 

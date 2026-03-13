@@ -3,7 +3,7 @@ import typer
 
 from .project import project_app
 from .secrets import secrets_app
-from .service_providers.cli import service_providers_app
+from .service_providers import service_providers_app
 
 
 def build_app() -> typer.Typer:

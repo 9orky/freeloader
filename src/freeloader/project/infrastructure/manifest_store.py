@@ -7,7 +7,7 @@ from freeloader import block
 from freeloader.shared import io
 from freeloader.shared.types import ConfigValue
 
-from ..domain.entities import Manifest, TechStack
+from ..domain.entity import Manifest, TechStack
 from ..domain.repository import ManifestRepository
 
 _MANIFEST_FILE_NAME = "freeloader.yaml"

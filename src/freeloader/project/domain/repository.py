@@ -5,7 +5,7 @@ from pathlib import Path
 from freeloader.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
 from freeloader.shared.types import ConfigValue
 
-from .entities import Manifest, TechStack
+from .entity import Manifest, TechStack
 
 
 class ManifestRepository(abc.ABC):
