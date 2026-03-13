@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -eu
+
+user="${ssh_user}"
+home_dir="/home/${ssh_user}"
+auth_keys="$home_dir/.ssh/authorized_keys"
+
+if ! id -u "$user" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash --groups sudo "$user"
+fi
+
+install -d -m 700 -o "$user" -g "$user" "$home_dir/.ssh"
+touch "$auth_keys"
+chmod 600 "$auth_keys"
+chown "$user:$user" "$auth_keys"
+
+grep -qxF '${ssh_public_key}' "$auth_keys" || echo '${ssh_public_key}' >> "$auth_keys"

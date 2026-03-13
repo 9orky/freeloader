@@ -1,0 +1,58 @@
+block:
+  description: Deploys a public Cloud Run service from a container image.
+  layer: deploy
+
+costs:
+  tier: free_tier
+  note: Cloud Run includes an always-free request, CPU, and memory allowance.
+
+provides:
+  app_url:
+    description: Public URL of the Cloud Run service.
+  app_id:
+    description: Cloud Run service name.
+
+requires:
+  registry.image_path:
+    description: Full container image path without tag.
+
+config:
+  basic:
+    - name: name
+      description: Cloud Run service name.
+      required: true
+      project_name_default: true
+
+  advanced:
+    - name: region
+      description: Cloud Run region.
+      default: us-central1
+    - name: project_id
+      description: Override the GCP project ID instead of reading it from the service account JSON.
+      default: ""
+    - name: image_tag
+      description: Container image tag to deploy.
+      default: latest
+    - name: container_port
+      description: Port exposed by the container.
+      default: 8080
+    - name: cpu
+      description: Cloud Run CPU limit.
+      default: "1"
+      choices: ["1", "2", "4", "6", "8"]
+    - name: memory
+      description: Cloud Run memory limit.
+      default: 512Mi
+    - name: max_instances
+      description: Maximum number of serving instances.
+      default: 1
+    - name: allow_unauthenticated
+      description: Disable IAM checks on the default public URL.
+      default: true
+    - name: env_json
+      description: JSON object of environment variables injected into the container.
+      default: "{}"
+
+  secrets:
+    - name: gcp_service_account_json
+      description: Raw GCP service account JSON with Cloud Run permissions.

@@ -1,0 +1,71 @@
+block:
+  description: Provisions a small GCE VM with SSH access and an optional generated key pair.
+  layer: infra
+
+costs:
+  tier: free_tier
+  free_tier_limits:
+    - metric: compute_hours
+      amount: 730
+      period: monthly
+  note: Always-free eligibility depends on e2-micro usage in supported US regions.
+
+provides:
+  ip_address:
+    description: Public IPv4 address of the VM.
+  instance_id:
+    description: GCE instance ID.
+  ssh_user:
+    description: SSH login user configured on the VM.
+  public_dns:
+    description: Public hostname when available, otherwise the public IP.
+  ssh_private_key_path:
+    description: Local path to the generated private key file, or empty when ssh_public_key is provided.
+
+requires: {}
+
+config:
+  basic:
+    - name: name
+      description: VM instance name.
+      required: true
+      project_name_default: true
+
+  advanced:
+    - name: project_id
+      description: Override the GCP project ID instead of reading it from the service account JSON.
+      default: ""
+    - name: zone
+      description: GCE zone.
+      default: us-central1-a
+    - name: machine_type
+      description: GCE machine type.
+      default: e2-micro
+    - name: disk_size_gb
+      description: Boot disk size in GB.
+      default: 30
+    - name: image_family
+      description: Source image family.
+      default: debian-12
+    - name: image_project
+      description: Public image project for the selected family.
+      default: debian-cloud
+    - name: network
+      description: VPC network name.
+      default: default
+    - name: subnetwork
+      description: Optional subnetwork name when not using the network default.
+      default: ""
+    - name: ssh_user
+      description: Linux user created and authorised for SSH access.
+      default: freeloader
+    - name: ssh_public_key
+      description: SSH public key content. Leave empty to generate a dedicated key pair.
+      default: ""
+    - name: ssh_source_ranges
+      description: Source CIDR ranges allowed to reach port 22.
+      default: [0.0.0.0/0]
+
+  secrets:
+    - name: gcp_service_account_json
+      description: Raw GCP service account JSON with Compute Engine permissions.

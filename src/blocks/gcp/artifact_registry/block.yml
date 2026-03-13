@@ -1,0 +1,49 @@
+block:
+  description: Creates a GCP Artifact Registry Docker repository for image pushes.
+  layer: registry
+
+costs:
+  tier: free_tier
+  note: Artifact Registry has a small always-free usage allowance; storage and egress beyond that are billed.
+
+provides:
+  host:
+    description: Artifact Registry Docker hostname for the selected location.
+  user:
+    description: Docker registry username for JSON key auth (_json_key).
+  token:
+    description: Raw service account JSON used as the Docker registry password.
+    sensitive: true
+  image_path:
+    description: Full image path without tag.
+  project_id:
+    description: Effective GCP project ID used for the repository.
+  repository_id:
+    description: Artifact Registry repository ID.
+
+requires: {}
+
+config:
+  basic:
+    - name: name
+      description: Base name used for the repository and image path.
+      required: true
+      project_name_default: true
+
+  advanced:
+    - name: location
+      description: Artifact Registry location or multi-region.
+      default: us-central1
+    - name: project_id
+      description: Override the GCP project ID instead of reading it from the service account JSON.
+      default: ""
+    - name: repository_id
+      description: Artifact Registry repository ID.
+      default: ""
+    - name: image_name
+      description: Image name segment appended after the repository.
+      default: ""
+
+  secrets:
+    - name: gcp_service_account_json
+      description: Raw GCP service account JSON with Artifact Registry permissions.

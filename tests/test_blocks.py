@@ -35,3 +35,27 @@ def test_tech_stack_blocks_have_tech_fields() -> None:
             assert tech_stack_fields, (
                 f"Block {block_id} is marked required_tech_stack but has no tech stack fields"
             )
+
+
+def test_gcp_blocks_expose_expected_contracts() -> None:
+    loader = FileSystemBlockLoader.init(BLOCKS_ROOT)
+    blocks = loader.load_all()
+
+    artifact_registry = blocks["gcp.artifact_registry"].contract
+    assert artifact_registry.block.layer == "registry"
+    assert {"host", "user", "token", "image_path"}.issubset(
+        artifact_registry.provides)
+    assert any(
+        field.name == "gcp_service_account_json" for field in artifact_registry.config)
+
+    cloud_run = blocks["gcp.cloud_run"].contract
+    assert cloud_run.block.layer == "deploy"
+    assert "registry.image_path" in cloud_run.requires
+    assert {"app_url", "app_id"}.issubset(cloud_run.provides)
+
+    vm = blocks["gcp.vm"].contract
+    assert vm.block.layer == "infra"
+    assert {"ip_address", "instance_id", "ssh_user",
+            "public_dns"}.issubset(vm.provides)
+    assert "ssh_private_key_path" in vm.provides
+    assert any(field.name == "ssh_public_key" for field in vm.config)
