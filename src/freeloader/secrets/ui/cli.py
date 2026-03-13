@@ -36,7 +36,7 @@ def add(
     key: str = typer.Argument(..., help="Secret key"),
     namespace: str | None = typer.Option(None, "--namespace", "-n"),
 ) -> None:
-    value = typer.prompt(f"Value for secret '{key}'", hide_input=True)
+    value = console.prompt(f"Value for secret '{key}'", hide_input=True)
     application.write_secret(key, value, namespace)
     typer.echo(f"Secret '{key}' written.")
 

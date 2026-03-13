@@ -8,6 +8,7 @@ from rich.table import Table
 _console = Console()
 _err_console = Console(stderr=True)
 
+from .input_selector import InputSelector, prompt  # noqa: E402
 from .progress import ProgressUpdate, StatusStream, run_status_stream  # noqa: E402
 
 
@@ -86,18 +87,20 @@ def handle_errors(func):
 
 
 def prompter(prompts: list[str], hide_input: bool = False) -> dict[str, str]:
-    return {prompt: typer.prompt(prompt, hide_input=hide_input) for prompt in prompts}
+    return {prompt_text: prompt(prompt_text, hide_input=hide_input) for prompt_text in prompts}
 
 
 __all__ = [
     "ProgressUpdate",
     "StatusStream",
+    "InputSelector",
     "dict_to_tree",
     "error",
     "handle_cli_error",
     "handle_errors",
     "info",
     "ok",
+    "prompt",
     "print_dict",
     "print_table",
     "prompter",

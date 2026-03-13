@@ -17,7 +17,7 @@ def _run_obtain_steps(steps: tuple) -> dict[str, str]:
     for step in steps:
         match step.action.value:
             case "input":
-                context[step.value] = typer.prompt(step.value)
+                context[step.value] = console.prompt(step.value)
             case "info":
                 console.info(step.value.format(**context))
             case "open_url":
