@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from freeloader.block import (
+from freeloader.shared.block import (
     BlockApplyCompleted,
     BlockApplyStarted,
     BlockDependencyInputsStarted,

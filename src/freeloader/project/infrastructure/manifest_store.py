@@ -3,8 +3,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from freeloader import block
 from freeloader.shared import io
+from freeloader.shared.block import BlockRef
 from freeloader.shared.types import ConfigValue
 
 from ..domain.entity import Manifest, TechStack
@@ -30,7 +30,7 @@ class _ManifestTechStack(BaseModel):
 class _ManifestContract(BaseModel):
     project: _ManifestMeta
     stack: _ManifestTechStack
-    blocks: list[block.BlockRef]
+    blocks: list[BlockRef]
 
 
 class YamlManifestStore(ManifestRepository):
@@ -61,7 +61,7 @@ class YamlManifestStore(ManifestRepository):
         ), f"Project manifest already exists in {folder}"
         self.resources_folder(folder).mkdir(exist_ok=True)
         block_refs = [
-            block.BlockRef.model_validate({"use": ref_name, "config": config})
+            BlockRef.model_validate({"use": ref_name, "config": config})
             for ref_name, config in block_configs.items()
         ]
         contract = _ManifestContract.model_validate({

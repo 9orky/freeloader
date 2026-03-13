@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from freeloader.secrets.application.interface import Secrets
+from freeloader.secrets import Secrets
 
 from ..domain.repository import SecretsReader
 

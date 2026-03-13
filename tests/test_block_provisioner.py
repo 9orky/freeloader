@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from freeloader.block import (
+from freeloader.shared.block import (
     BlockApplyCompleted,
     BlockApplyStarted,
     BlockDependencyInputsStarted,

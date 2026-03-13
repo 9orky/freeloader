@@ -2,7 +2,7 @@ import typer
 
 from freeloader.shared import console
 
-from ..application import commands, queries
+from .. import application
 
 
 secrets_app = typer.Typer(
@@ -17,7 +17,7 @@ secrets_app = typer.Typer(
 def list_secret_names(
     namespace: str | None = typer.Option(None, "--namespace", "-n"),
 ) -> None:
-    for secret in queries.list_secrets(namespace):
+    for secret in application.list_secrets(namespace):
         typer.echo(f"{secret.namespace}/{secret.name}")
 
 
@@ -26,7 +26,7 @@ def list_secret_names(
 def reveal(
     namespace: str | None = typer.Option(None, "--namespace", "-n"),
 ) -> None:
-    for secret in queries.reveal_secrets(namespace):
+    for secret in application.reveal_secrets(namespace):
         typer.echo(f"{secret.namespace}/{secret.name} = {secret.value}")
 
 
@@ -37,7 +37,7 @@ def add(
     namespace: str | None = typer.Option(None, "--namespace", "-n"),
 ) -> None:
     value = typer.prompt(f"Value for secret '{key}'", hide_input=True)
-    commands.write_secret(key, value, namespace)
+    application.write_secret(key, value, namespace)
     typer.echo(f"Secret '{key}' written.")
 
 
@@ -47,5 +47,5 @@ def remove(
     key: str = typer.Argument(..., help="Secret key"),
     namespace: str | None = typer.Option(None, "--namespace", "-n"),
 ) -> None:
-    commands.remove_secret(key, namespace)
+    application.remove_secret(key, namespace)
     typer.echo(f"Secret '{key}' removed.")

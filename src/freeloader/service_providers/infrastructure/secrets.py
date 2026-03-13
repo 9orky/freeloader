@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from freeloader.secrets.application.interface import Secrets
+from freeloader.secrets import Secrets
 
 from ..domain import CredentialKey, CredentialValue, Credentials
 from ..domain.repository import CredentialRepository

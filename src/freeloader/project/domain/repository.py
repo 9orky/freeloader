@@ -2,7 +2,7 @@ import abc
 from collections.abc import Iterator
 from pathlib import Path
 
-from freeloader.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
+from freeloader.shared.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
 from freeloader.shared.types import ConfigValue
 
 from .entity import Manifest, TechStack

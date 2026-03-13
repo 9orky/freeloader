@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from pathlib import Path
 
-from freeloader.block import BlockDestroyEvent, BlockProvisionEvent
+from freeloader.shared.block import BlockDestroyEvent, BlockProvisionEvent
 from freeloader.service_providers import ServiceProviders
 from freeloader.shared.types import ConfigValue
 

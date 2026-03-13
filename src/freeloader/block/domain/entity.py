@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
+from freeloader.shared.block import BlockRef
 from freeloader.shared.types import ConfigValue
 
 from . import Layer
@@ -102,22 +103,6 @@ class OutputReference:
             provider_id=provider_id,
             output_name=output_name,
         )
-
-
-# ---------------------------------------------------------------------------
-# Resolver reference types (ported from block/resolver/base.py)
-# ---------------------------------------------------------------------------
-
-
-class BlockRef(BaseModel):
-    use: str
-    id: str | None = None
-    config: dict[str, ConfigValue | None] = {}
-
-    @computed_field
-    @property
-    def resolved_id(self) -> str:
-        return self.id or self.use
 
 
 @dataclass(frozen=True)

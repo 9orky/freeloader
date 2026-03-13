@@ -1,10 +1,9 @@
 from collections.abc import Iterator
 from pathlib import Path
 
+from freeloader.shared.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
 from freeloader.shared.types import ConfigValue
 
-from ..domain.events import BlockDestroyEvent, BlockProvisionEvent
-from ..domain.entity import BlockRef
 from ..domain.provisioning import DestroyReport, ProvisioningReport
 
 from . import commands, queries

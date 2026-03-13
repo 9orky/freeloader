@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from freeloader.block import BlockRef
+from freeloader.shared.block import BlockRef
 from freeloader.shared.tech import TechStack
 
 

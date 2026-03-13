@@ -40,8 +40,8 @@ def test_manage_command_calls_application_and_renders_result(
     monkeypatch, tmp_path: Path
 ) -> None:
     import freeloader.project.ui.cli as project_cli
-    from freeloader.block import BlockRef
     from freeloader.project.domain.entity import Manifest, TechStack
+    from freeloader.shared.block import BlockRef
 
     captured: list[dict] = []
 
@@ -77,8 +77,8 @@ def test_manage_project_filters_block_configs_via_service_providers(
     monkeypatch, tmp_path: Path
 ) -> None:
     import freeloader.project.application.commands as commands
-    from freeloader.block import BlockRef
     from freeloader.project.domain.entity import Manifest, TechStack
+    from freeloader.shared.block import BlockRef
 
     saved_block_configs: dict[str, dict[str, str]] = {}
     support_calls: list[list[str]] = []
@@ -160,9 +160,9 @@ def test_provision_project_events_loads_manifest_and_forwards_iterator(
     monkeypatch, tmp_path: Path
 ) -> None:
     import freeloader.project.application.commands as commands
-    from freeloader.block import BlockRef, ProvisioningFinished
     from freeloader.block.domain.provisioning import ProvisioningPlan, ProvisioningReport
     from freeloader.project.domain.entity import Manifest, TechStack
+    from freeloader.shared.block import BlockRef, ProvisioningFinished
 
     block_ref = BlockRef.model_validate(
         {"use": "github/actions_ci", "config": {"name": "demo"}}
@@ -217,7 +217,7 @@ def test_provision_project_events_loads_manifest_and_forwards_iterator(
 
 def test_provision_command_uses_streaming_progress(monkeypatch, tmp_path: Path) -> None:
     import freeloader.project.ui.cli as project_cli
-    from freeloader.block import ProvisioningStarted
+    from freeloader.shared.block import ProvisioningStarted
 
     received: list[list[object]] = []
 
@@ -263,8 +263,8 @@ def test_status_command_renders_unmanaged(monkeypatch, tmp_path: Path) -> None:
 
 def test_status_command_renders_managed(monkeypatch, tmp_path: Path) -> None:
     import freeloader.project.ui.cli as project_cli
-    from freeloader.block import BlockRef
     from freeloader.project.domain.entity import Manifest, TechStack
+    from freeloader.shared.block import BlockRef
 
     captured: list[dict] = []
     fake_manifest = Manifest(
@@ -292,7 +292,7 @@ def test_status_command_renders_managed(monkeypatch, tmp_path: Path) -> None:
 
 def test_forget_command_uses_streaming_progress(monkeypatch, tmp_path: Path) -> None:
     import freeloader.project.ui.cli as project_cli
-    from freeloader.block import DestroyStarted
+    from freeloader.shared.block import DestroyStarted
 
     received: list[list[object]] = []
 
