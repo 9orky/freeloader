@@ -1,8 +1,35 @@
 [project]
 name = "freeloader"
-version = "0.1.0"
-description = "Pipeline composer for indie developers"
+dynamic = ["version"]
+description = "Compose deployment infrastructure from reusable Terraform-backed blocks."
+readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+authors = [
+    { name = "szpak-dev" },
+]
+keywords = [
+    "cli",
+    "deployment",
+    "devops",
+    "infrastructure",
+    "terraform",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Installation/Setup",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
 dependencies = [
     "typer>=0.15",
     "pydantic>=2.10",
@@ -22,22 +49,48 @@ dependencies = [
     "structlog>=25.5.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/szpak-dev/freeloader"
+Repository = "https://github.com/szpak-dev/freeloader"
+Issues = "https://github.com/szpak-dev/freeloader/issues"
+Documentation = "https://github.com/szpak-dev/freeloader#readme"
+
 [dependency-groups]
 dev = [
+    "build>=1.2",
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "ruff>=0.9",
+    "twine>=6.0",
 ]
 
 [project.scripts]
 fl = "freeloader.cli:app"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "^v?(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-z]+\\d+)?)$"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freeloader"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/blocks" = "freeloader/blocks"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+    "/uv.lock",
+]
 
 [tool.ruff]
 line-length = 120

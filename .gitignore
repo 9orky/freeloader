@@ -17,3 +17,5 @@ __pycache__/
 .ruff_cache
 .home
 .test_projects/
+dist/
+*.egg-info/
