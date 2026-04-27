@@ -84,6 +84,17 @@ class Block:
     contract: BlockContract
 
 
+@dataclass(frozen=True)
+class BlockCandidate:
+    id: BlockId
+    provider: str
+    config: dict[str, ConfigValue]
+    required_secret_keys: tuple[str, ...]
+    required_tech_fields: tuple[str, ...]
+    required_tech_stack: bool
+    config_groups: tuple[str, ...]
+
+
 # ---------------------------------------------------------------------------
 # Execution context types (ported from block/context.py)
 # ---------------------------------------------------------------------------

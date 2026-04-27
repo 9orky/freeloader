@@ -14,6 +14,3 @@ class CheckBlockSupportService:
             for name in normalized_names
         )
         return BlockSupportReport(driver_reports=driver_reports)
-
-    def is_supported(self, driver_names: list[str]) -> bool:
-        return self.check(driver_names).supported

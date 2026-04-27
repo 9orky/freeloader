@@ -1,9 +1,10 @@
-from .commands import has_secrets, remove_secret, write_secret, write_secrets
+from .commands import check_secret_availability, has_secrets, remove_secret, write_secret, write_secrets
 from .interface import Secrets as Secrets
 from .queries import list_secrets, read_secrets, reveal_secrets
 
 __all__ = [
     "Secrets",
+    "check_secret_availability",
     "has_secrets",
     "list_secrets",
     "read_secrets",

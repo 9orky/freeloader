@@ -71,13 +71,83 @@ def test_manage_command_calls_application_and_renders_result(
     assert result.exit_code == 0
     assert captured[0]["tech_stack"]["language"] == "python"
     assert captured[0]["block_configs"]["github/actions_ci"]["name"] == "demo"
+    assert "planning" not in captured[0]
+
+
+def test_manage_command_can_render_planning_diagnostics(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import freeloader.project.ui.cli as project_cli
+    from freeloader.project.application.commands import ManagedProject
+    from freeloader.project.application.services import (
+        PlanningReason,
+        SelectionDecision,
+        SelectionReport,
+    )
+    from freeloader.project.domain.entity import Manifest, TechStack
+    from freeloader.shared.block import BlockRef
+
+    captured: list[dict] = []
+
+    def fake_manage_with_report(name: str, folder: Path, full_manifest: bool) -> ManagedProject:
+        return ManagedProject(
+            manifest=Manifest(
+                name=name,
+                tech_stack=TechStack(language="python"),
+                block_refs=(
+                    BlockRef.model_validate(
+                        {"use": "git/local_repo", "config": {"visibility": "private"}}
+                    ),
+                ),
+            ),
+            selection_report=SelectionReport(
+                decisions=(
+                    SelectionDecision(
+                        block_id="git.local_repo",
+                        config={"visibility": "private"},
+                        selected=True,
+                    ),
+                    SelectionDecision(
+                        block_id="github.remote_repo",
+                        config={},
+                        selected=False,
+                        reasons=(
+                            PlanningReason(
+                                code="missing_secrets",
+                                message="Missing required secrets: github_token",
+                            ),
+                        ),
+                    ),
+                )
+            ),
+        )
+
+    monkeypatch.setattr(project_cli, "_cwd", lambda: tmp_path)
+    monkeypatch.setattr(
+        project_cli.application,
+        "manage_project_with_report",
+        fake_manage_with_report,
+    )
+    monkeypatch.setattr(
+        project_cli.console, "print_dict", lambda data, **_: captured.append(data)
+    )
+
+    result = CliRunner().invoke(app, ["project", "manage", "--explain"])
+
+    assert result.exit_code == 0
+    assert captured[0]["planning"]["selected_blocks"] == ["git.local_repo"]
+    assert captured[0]["planning"]["excluded_blocks"] == {
+        "github.remote_repo": ["Missing required secrets: github_token"]
+    }
 
 
 def test_manage_project_filters_block_configs_via_service_providers(
     monkeypatch, tmp_path: Path
 ) -> None:
     import freeloader.project.application.commands as commands
-    from freeloader.project.domain.entity import Manifest, TechStack
+    from freeloader.project.domain.entity import CandidateBlock, Manifest, TechStack
+    from freeloader.secrets.domain.entity import SecretAvailabilityReport
+    from freeloader.service_providers.domain import BlockSupportReport, DriverSupportReport
     from freeloader.shared.block import BlockRef
 
     saved_block_configs: dict[str, dict[str, str]] = {}
@@ -118,27 +188,44 @@ def test_manage_project_filters_block_configs_via_service_providers(
             return TechStack(language="python")
 
     class FakeBlockGateway:
-        def get_manifest_configs(
+        def get_manifest_candidates(
             self,
             project_root: Path,
             tech_stack: TechStack,
             full_manifest: bool,
             project_name: str | None,
-        ) -> dict[str, dict[str, str]]:
+        ) -> tuple[CandidateBlock, ...]:
             assert project_root == tmp_path
             assert tech_stack.language == "python"
             assert full_manifest is False
             assert project_name == tmp_path.name
-            return {
-                "docker.dockerfile": {"language": "python"},
-                "docker.dockerignore": {"include": ".env"},
-                "git.local_repo": {"visibility": "private"},
-            }
+            return (
+                CandidateBlock("docker.dockerfile", "docker", {"language": "python"}),
+                CandidateBlock("docker.dockerignore", "docker", {"include": ".env"}),
+                CandidateBlock("git.local_repo", "git", {"visibility": "private"}),
+            )
 
     class FakeServiceProviders:
-        def is_block_supported(self, driver_names: list[str]) -> bool:
+        def check_block_support(self, driver_names: list[str]) -> BlockSupportReport:
             support_calls.append(driver_names)
-            return driver_names != ["docker"]
+            return BlockSupportReport(
+                driver_reports=tuple(
+                    DriverSupportReport(driver=name, definitive=name != "docker")
+                    for name in driver_names
+                )
+            )
+
+    class FakeSecrets:
+        @classmethod
+        def for_default_namespace(cls):
+            return cls()
+
+        def check_availability(self, names: list[str]) -> SecretAvailabilityReport:
+            return SecretAvailabilityReport(
+                required_keys=tuple(names),
+                present_keys=tuple(names),
+                missing_keys=(),
+            )
 
     monkeypatch.setattr(commands, "load_manifest_repository",
                         lambda: FakeManifestRepository())
@@ -148,6 +235,7 @@ def test_manage_project_filters_block_configs_via_service_providers(
                         lambda: FakeBlockGateway())
     monkeypatch.setattr(commands, "ServiceProviders",
                         lambda: FakeServiceProviders())
+    monkeypatch.setattr(commands, "Secrets", FakeSecrets)
 
     manifest = commands.manage_project(tmp_path.name, tmp_path)
 

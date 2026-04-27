@@ -9,6 +9,7 @@ Read this file before making changes. Its job is to keep humans and LLMs aligned
 - Source code lives under `src/freeloader`; tests live under `tests`.
 - Use `uv` for running commands and managing dependencies.
 - Available validation tools include `pytest` and `ruff`.
+- Agent-specific repo rules live under `.agentic/rules/local/`; read `.agentic/rules/local/INDEX.md` before architecture or refactor work.
 
 ## Primary Goal
 
@@ -25,6 +26,8 @@ Make the smallest correct change that fully solves the task, fits the existing a
 ### 2. Respect Existing Boundaries
 
 - Keep concerns separated: CLI code wires commands, use cases orchestrate behavior, adapters talk to external systems, and shared modules hold cross-cutting utilities.
+- Treat `docs/FEATURE_ARCHITECTURE.md`, `.agentic/agentic.yaml`, and `tests/architecture_rules/` as the durable feature/layer contract.
+- Cross-feature code imports feature package roots only, such as `freeloader.block` or `freeloader.service_providers`.
 - Reuse existing abstractions when they fit. Do not add layers, protocols, or helper modules without a concrete need.
 - Keep public APIs stable unless the requested change requires a breaking change.
 - Do not move or rename files purely for taste.

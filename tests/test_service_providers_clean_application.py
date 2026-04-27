@@ -98,12 +98,42 @@ def test_check_block_support_aggregates_missing_local_commands(monkeypatch) -> N
         [" docker ", "git", "docker"])
 
     assert report.supported is False
+    assert report.definitive is True
+    assert report.degraded is False
+    assert [str(name) for name in report.checked_provider_names] == ["docker", "git"]
+    assert [str(name) for name in report.unsupported_provider_names] == ["docker"]
     assert report.missing_local_commands == (LocalCommand("docker"),)
     assert report.reasons == ("Docker CLI not found in PATH.",)
     assert [str(driver_report.driver) for driver_report in report.driver_reports] == [
         "docker",
         "git",
     ]
+
+
+def test_check_block_support_reports_degraded_unknown_result(monkeypatch) -> None:
+    catalog = _catalog()
+    terraform_provider = ServiceProvider(
+        name="terraform",
+        support=(LocalRequirement("terraform"),),
+    )
+    catalog.drivers["terraform"] = FakeDriver(
+        provider=terraform_provider,
+        support_report=DriverSupportReport(
+            driver="terraform",
+            definitive=False,
+            reasons=("Terraform support check could not run.",),
+        ),
+    )
+    monkeypatch.setattr(queries, "load_provider_catalog", lambda: catalog)
+
+    report = ServiceProviders().check_block_support(["terraform"])
+
+    assert report.supported is False
+    assert report.definitive is False
+    assert report.degraded is True
+    assert report.reasons == ("Terraform support check could not run.",)
+    assert [str(name) for name in report.checked_provider_names] == ["terraform"]
+    assert [str(name) for name in report.unsupported_provider_names] == ["terraform"]
 
 
 def test_is_block_supported_returns_boolean(monkeypatch) -> None:

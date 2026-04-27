@@ -7,7 +7,7 @@ from freeloader.shared import console
 
 from .. import application
 from .progress import render_project_forget_progress, render_project_provision_progress
-from .views import ManageProjectView, ProjectStatusView
+from .views import ManageProjectView, ProjectStatusView, planning_diagnostics_view
 
 
 project_app = typer.Typer(
@@ -39,14 +39,27 @@ def manage(
         "--full-manifest",
         help="Include advanced configuration fields in the manifest",
     ),
+    explain: bool = typer.Option(
+        False,
+        "--explain",
+        help="Include block selection diagnostics",
+    ),
 ) -> None:
     folder = _cwd()
-    manifest = application.manage_project(folder.name, folder, full_manifest)
+    if explain:
+        result = application.manage_project_with_report(folder.name, folder, full_manifest)
+        manifest = result.manifest
+        planning = planning_diagnostics_view(result.selection_report)
+    else:
+        manifest = application.manage_project(folder.name, folder, full_manifest)
+        planning = None
+
     view = ManageProjectView(
         tech_stack=dataclasses.asdict(manifest.tech_stack),
         block_configs={ref.use: ref.config for ref in manifest.block_refs},
+        planning=planning,
     )
-    console.print_dict(view.model_dump(mode="python"))
+    console.print_dict(view.model_dump(mode="python", exclude_none=True))
 
 
 @project_app.command(help="Show whether this directory is managed by freeloader")

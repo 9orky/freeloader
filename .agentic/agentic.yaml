@@ -1,0 +1,84 @@
+# Durable architecture agreement for Freeloader.
+#
+# Keep this file aligned with docs/FEATURE_ARCHITECTURE.md and the executable
+# rules in tests/architecture_rules/. This config is intentionally stricter
+# about feature/layer ownership than about implementation detail.
+
+language: python
+exclusions:
+  - .venv/**
+  - .test_projects/**
+  - .agentic/**
+  - tests/**
+  - docs/**
+  - src/blocks/**
+code:
+  skip: ["*__pycache__*"]
+
+rules:
+  tags:
+    - { name: app_root, match: &app_root "src/freeloader" }
+    - { name: root_cli, match: &root_cli "src/freeloader/cli.py" }
+    - { name: feature, match: &feature "src/freeloader/{block,project,secrets,service_providers}/**" }
+    - { name: feature_root, match: &feature_root "src/freeloader/{block,project,secrets,service_providers}/__init__.py" }
+    - { name: shared, match: &shared "src/freeloader/shared/**" }
+    - { name: domain, match: &domain "src/freeloader/{block,project,secrets,service_providers}/domain/**" }
+    - { name: application, match: &application "src/freeloader/{block,project,secrets,service_providers}/application/**" }
+    - { name: infrastructure, match: &infrastructure "src/freeloader/{block,project,secrets,service_providers}/infrastructure/**" }
+    - { name: ui, match: &ui "src/freeloader/{project,secrets,service_providers}/ui/**" }
+    - { name: feature_init, match: &feature_init "src/freeloader/{block,project,secrets,service_providers}/__init__.py" }
+    - { name: application_init, match: &application_init "src/freeloader/{block,project,secrets,service_providers}/application/__init__.py" }
+    - { name: infrastructure_init, match: &infrastructure_init "src/freeloader/{block,project,secrets,service_providers}/infrastructure/__init__.py" }
+    - { name: domain_init, match: &domain_init "src/freeloader/{block,project,secrets,service_providers}/domain/__init__.py" }
+    - { name: block_assets, match: &block_assets "src/blocks/**" }
+
+  boundaries:
+    - source: *root_cli
+      disallow: [*feature]
+      allow: [*feature_root]
+
+    - source: *feature
+      disallow: [*feature]
+      allow_same_match: true
+      allow: [*feature_root]
+
+    - source: *domain
+      disallow: [*application, *infrastructure, *ui]
+      allow: [*shared, *domain_init]
+
+    - source: *infrastructure
+      disallow: [*application, *ui]
+      allow: [*domain, *domain_init, *shared]
+
+    - source: *application
+      disallow: [*ui]
+      allow:
+        - *domain
+        - *domain_init
+        - *infrastructure_init
+        - src/freeloader/*/infrastructure/*.py
+        - *shared
+        - *feature_root
+
+    - source: *ui
+      disallow: [*domain, *infrastructure]
+      allow:
+        - *application_init
+        - src/freeloader/*/application/*.py
+        - *shared
+
+    - source: *shared
+      disallow: [*feature]
+
+    - source: *feature_init
+      disallow: [*domain, *infrastructure]
+      allow:
+        - src/freeloader/*/application/__init__.py
+        - src/freeloader/*/application/interface.py
+        - src/freeloader/*/ui/__init__.py
+        - src/freeloader/*/ui/cli.py
+
+  flow:
+    layers: [ui, application, infrastructure, domain]
+    module_tag: feature
+    analyzers: [backward-flow, no-cycles]

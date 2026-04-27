@@ -5,7 +5,7 @@ from pathlib import Path
 from freeloader.shared.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
 from freeloader.shared.types import ConfigValue
 
-from .entity import Manifest, TechStack
+from .entity import CandidateBlock, Manifest, TechStack
 
 
 class ManifestRepository(abc.ABC):
@@ -38,13 +38,13 @@ class TechStackDetector(abc.ABC):
 
 class BlockGateway(abc.ABC):
     @abc.abstractmethod
-    def get_manifest_configs(
+    def get_manifest_candidates(
         self,
         project_root: Path,
         tech_stack: TechStack,
         full_manifest: bool,
         project_name: str | None,
-    ) -> dict[str, dict[str, ConfigValue]]: ...
+    ) -> tuple[CandidateBlock, ...]: ...
 
     @abc.abstractmethod
     def provision(

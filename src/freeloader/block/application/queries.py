@@ -1,51 +1,56 @@
 from freeloader.shared.tech import TECH_STACK_FIELD_NAMES
 from freeloader.shared.types import ConfigValue
 
-from ..infrastructure import load_block_repository, load_secrets_reader
+from ..domain.entity import Block, BlockCandidate
+from ..infrastructure import load_block_repository
 
 
-def get_manifest_configs(
+def get_manifest_candidates(
     tech_stack: dict[str, str],
     full_config: bool,
     project_name: str | None = None,
-) -> dict[str, dict[str, ConfigValue]]:
+) -> tuple[BlockCandidate, ...]:
     repository = load_block_repository()
-    secrets = load_secrets_reader()
     blocks = repository.load_all()
-    configs: dict[str, dict[str, ConfigValue]] = {}
+    return tuple(
+        _manifest_candidate(block, tech_stack, full_config, project_name)
+        for block in blocks.values()
+    )
 
-    for block_id, block in blocks.items():
-        contract = block.contract
 
-        required_secrets = contract.required_secret_keys
-        if required_secrets and not secrets.has_secrets(required_secrets):
+def _manifest_candidate(
+    block: Block,
+    tech_stack: dict[str, str],
+    full_config: bool,
+    project_name: str | None,
+) -> BlockCandidate:
+    contract = block.contract
+    groups = ("basic", "advanced") if full_config else ("basic",)
+    required_tech_fields = tuple(
+        field.name for field in contract.config if field.name in TECH_STACK_FIELD_NAMES
+    )
+    config: dict[str, ConfigValue] = {}
+
+    for field in contract.config:
+        if field.group not in groups:
             continue
+        if field.project_name_default and project_name is not None:
+            config[field.name] = project_name
+        elif field.default is not None:
+            config[field.name] = field.default
 
-        tech_stack_field_names = [
-            field.name for field in contract.config if field.name in TECH_STACK_FIELD_NAMES
-        ]
-        if contract.block.required_tech_stack and not _has_required_tech_stack(
-            tech_stack_field_names, tech_stack
-        ):
-            continue
+    if contract.block.required_tech_stack:
+        config = _apply_tech_stack(config, list(required_tech_fields), tech_stack)
 
-        groups = ["basic", "advanced"] if full_config else ["basic"]
-        config: dict[str, ConfigValue] = {}
-        for field in contract.config:
-            if field.group not in groups:
-                continue
-            if field.project_name_default and project_name is not None:
-                config[field.name] = project_name
-            elif field.default is not None:
-                config[field.name] = field.default
-
-        if contract.block.required_tech_stack:
-            config = _apply_tech_stack(
-                config, tech_stack_field_names, tech_stack)
-
-        configs[block_id] = config
-
-    return configs
+    return BlockCandidate(
+        id=block.id,
+        provider=block.id.provider,
+        config=config,
+        required_secret_keys=tuple(contract.required_secret_keys),
+        required_tech_fields=required_tech_fields,
+        required_tech_stack=contract.block.required_tech_stack,
+        config_groups=groups,
+    )
 
 
 def _apply_tech_stack(
@@ -58,12 +63,3 @@ def _apply_tech_stack(
         if value is not None:
             config[field_name] = value
     return config
-
-
-def _has_required_tech_stack(
-    field_names: list[str],
-    tech_stack: dict[str, str],
-) -> bool:
-    if not field_names:
-        return False
-    return all(tech_stack.get(field_name) is not None for field_name in field_names)

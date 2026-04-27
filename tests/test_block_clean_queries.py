@@ -1,124 +1,77 @@
-from dataclasses import dataclass
-
 from freeloader.block.application import queries
 from freeloader.block.domain import Layer
 from freeloader.block.domain.entity import Block, BlockContract, BlockMeta, ConfigField
 from freeloader.block.domain.value_object import BlockId
 
 
-@dataclass(frozen=True)
 class FakeRepository:
+    def __init__(self, blocks: dict[str, Block]) -> None:
+        self.blocks = blocks
+
     blocks: dict[str, Block]
 
     def load_all(self) -> dict[str, Block]:
         return self.blocks
 
 
-@dataclass(frozen=True)
-class FakeSecretsReader:
-    available: set[str]
-
-    def has_secrets(self, secret_names: list[str]) -> bool:
-        return all(secret_name in self.available for secret_name in secret_names)
-
-
-def test_manifest_configs_excludes_blocks_missing_required_secrets(monkeypatch) -> None:
-    blocks = {
-        "github.remote_repo": _make_block(
-            "github.remote_repo",
-            [ConfigField(name="token", group="secrets")],
-        ),
-        "git.local_repo": _make_block("git.local_repo", [ConfigField(name="visibility")]),
-    }
-    monkeypatch.setattr(queries, "load_block_repository",
-                        lambda: FakeRepository(blocks))
-    monkeypatch.setattr(
-        queries,
-        "load_secrets_reader",
-        lambda: FakeSecretsReader(available=set()),
-    )
-
-    configs = queries.get_manifest_configs(tech_stack={}, full_config=False)
-
-    assert "github.remote_repo" not in configs
-    assert "git.local_repo" in configs
-
-
-def test_manifest_configs_excludes_blocks_missing_required_tech_stack(monkeypatch) -> None:
+def test_manifest_candidates_expose_provider_requirements_and_default_config(monkeypatch) -> None:
     blocks = {
         "docker.dockerfile": _make_block(
             "docker.dockerfile",
-            [ConfigField(name="language"), ConfigField(name="framework")],
-            required_tech_stack=True,
-        ),
-        "git.local_repo": _make_block("git.local_repo", [ConfigField(name="visibility")]),
-    }
-    monkeypatch.setattr(queries, "load_block_repository",
-                        lambda: FakeRepository(blocks))
-    monkeypatch.setattr(
-        queries,
-        "load_secrets_reader",
-        lambda: FakeSecretsReader(available=set()),
-    )
-
-    configs = queries.get_manifest_configs(
-        tech_stack={"language": "python"},
-        full_config=False,
-    )
-
-    assert "docker.dockerfile" not in configs
-    assert "git.local_repo" in configs
-
-
-def test_manifest_configs_applies_required_tech_stack_when_available(monkeypatch) -> None:
-    blocks = {
-        "docker.dockerfile": _make_block(
-            "docker.dockerfile",
-            [ConfigField(name="language"), ConfigField(name="framework")],
+            [
+                ConfigField(name="language"),
+                ConfigField(name="framework"),
+                ConfigField(name="image_tag", default="latest", group="advanced"),
+                ConfigField(name="docker_token", group="secrets"),
+            ],
             required_tech_stack=True,
         )
     }
-    monkeypatch.setattr(queries, "load_block_repository",
-                        lambda: FakeRepository(blocks))
-    monkeypatch.setattr(
-        queries,
-        "load_secrets_reader",
-        lambda: FakeSecretsReader(available=set()),
-    )
+    monkeypatch.setattr(queries, "load_block_repository", lambda: FakeRepository(blocks))
 
-    configs = queries.get_manifest_configs(
+    candidates = queries.get_manifest_candidates(
         tech_stack={"language": "python", "framework": "fastapi"},
-        full_config=False,
+        full_config=True,
+        project_name="demo",
     )
 
-    assert configs["docker.dockerfile"]["language"] == "python"
-    assert configs["docker.dockerfile"]["framework"] == "fastapi"
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert str(candidate.id) == "docker.dockerfile"
+    assert candidate.provider == "docker"
+    assert candidate.config == {
+        "language": "python",
+        "framework": "fastapi",
+        "image_tag": "latest",
+    }
+    assert candidate.required_secret_keys == ("docker_token",)
+    assert candidate.required_tech_fields == ("language", "framework")
+    assert candidate.required_tech_stack is True
+    assert candidate.config_groups == ("basic", "advanced")
 
 
-def test_manifest_configs_do_not_filter_by_provider_support(monkeypatch) -> None:
+def test_manifest_candidates_do_not_filter_missing_requirements(monkeypatch) -> None:
     blocks = {
+        "github.remote_repo": _make_block(
+            "github.remote_repo",
+            [ConfigField(name="github_token", group="secrets")],
+        ),
         "docker.dockerfile": _make_block(
             "docker.dockerfile",
-            [ConfigField(name="language")],
-        ),
-        "git.local_repo": _make_block(
-            "git.local_repo",
-            [ConfigField(name="visibility")],
+            [ConfigField(name="language"), ConfigField(name="framework")],
+            required_tech_stack=True,
         ),
     }
+    monkeypatch.setattr(queries, "load_block_repository", lambda: FakeRepository(blocks))
 
-    monkeypatch.setattr(queries, "load_block_repository",
-                        lambda: FakeRepository(blocks))
-    monkeypatch.setattr(
-        queries,
-        "load_secrets_reader",
-        lambda: FakeSecretsReader(available=set()),
-    )
+    candidates = queries.get_manifest_candidates(tech_stack={}, full_config=False)
 
-    configs = queries.get_manifest_configs(tech_stack={}, full_config=False)
-
-    assert "docker.dockerfile" in configs
-    assert "git.local_repo" in configs
+    assert [str(candidate.id) for candidate in candidates] == [
+        "github.remote_repo",
+        "docker.dockerfile",
+    ]
+    assert candidates[0].required_secret_keys == ("github_token",)
+    assert candidates[1].required_tech_fields == ("language", "framework")
 
 
 def _make_block(

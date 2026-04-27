@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from ..domain.entity import DEFAULT_NAMESPACE
+from ..domain.entity import DEFAULT_NAMESPACE, SecretAvailabilityReport
 
 from . import commands, queries
 
@@ -28,6 +28,10 @@ class Secrets:
     def has_secrets(self, names: list[str]) -> bool:
         normalized_names = [self._normalize_name(name) for name in names]
         return commands.has_secrets(normalized_names, self.namespace)
+
+    def check_availability(self, names: list[str]) -> SecretAvailabilityReport:
+        normalized_names = [self._normalize_name(name) for name in names]
+        return commands.check_secret_availability(normalized_names, self.namespace)
 
     def _normalize_name(self, name: str) -> str:
         return name.strip().lower()

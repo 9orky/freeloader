@@ -4,27 +4,37 @@ from pathlib import Path
 
 from freeloader.block import Blocks
 from freeloader.shared.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
-from freeloader.shared.types import ConfigValue
 
-from ..domain.entity import TechStack
+from ..domain.entity import CandidateBlock, TechStack
 from ..domain.repository import BlockGateway
 
 
 class BlockSystemGateway(BlockGateway):
-    def get_manifest_configs(
+    def get_manifest_candidates(
         self,
         project_root: Path,
         tech_stack: TechStack,
         full_manifest: bool,
         project_name: str | None,
-    ) -> dict[str, dict[str, ConfigValue]]:
+    ) -> tuple[CandidateBlock, ...]:
         stack_dict = {
             k: v
             for k, v in dataclasses.asdict(tech_stack).items()
             if v is not None
         }
-        return Blocks.for_project(project_root).manifest_configs(
+        candidates = Blocks.for_project(project_root).manifest_candidates(
             stack_dict, full_manifest, project_name
+        )
+        return tuple(
+            CandidateBlock(
+                block_id=str(candidate.id),
+                provider=candidate.provider,
+                config=candidate.config,
+                required_secret_keys=candidate.required_secret_keys,
+                required_tech_fields=candidate.required_tech_fields,
+                required_tech_stack=candidate.required_tech_stack,
+            )
+            for candidate in candidates
         )
 
     def provision(

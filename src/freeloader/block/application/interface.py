@@ -2,8 +2,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from freeloader.shared.block import BlockDestroyEvent, BlockProvisionEvent, BlockRef
-from freeloader.shared.types import ConfigValue
-
+from ..domain.entity import BlockCandidate
 from ..domain.provisioning import DestroyReport, ProvisioningReport
 
 from . import commands, queries
@@ -15,16 +14,15 @@ class Blocks:
 
     @classmethod
     def for_project(cls, project_root: Path) -> "Blocks":
-        """Construct a Blocks facade scoped to one project root."""
         return cls(project_root=project_root)
 
-    def manifest_configs(
+    def manifest_candidates(
         self,
         tech_stack: dict[str, str],
         full_config: bool,
         project_name: str | None = None,
-    ) -> dict[str, dict[str, ConfigValue]]:
-        return queries.get_manifest_configs(
+    ) -> tuple[BlockCandidate, ...]:
+        return queries.get_manifest_candidates(
             tech_stack=tech_stack,
             full_config=full_config,
             project_name=project_name,
