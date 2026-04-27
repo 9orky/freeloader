@@ -101,7 +101,7 @@ git push origin v0.1.0
 
 The `release.yml` workflow builds the package from the tag and publishes to PyPI with trusted publishing. Configure a PyPI trusted publisher for:
 
-- Repository: `szpak-dev/freeloader`
+- Repository: `9orky/freeloader`
 - Workflow: `release.yml`
 - Environment: `pypi`
 

@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 authors = [
-    { name = "szpak-dev" },
+    { name = "9orky" },
 ]
 keywords = [
     "cli",
@@ -50,10 +50,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/szpak-dev/freeloader"
-Repository = "https://github.com/szpak-dev/freeloader"
-Issues = "https://github.com/szpak-dev/freeloader/issues"
-Documentation = "https://github.com/szpak-dev/freeloader#readme"
+Homepage = "https://github.com/9orky/freeloader"
+Repository = "https://github.com/9orky/freeloader"
+Issues = "https://github.com/9orky/freeloader/issues"
+Documentation = "https://github.com/9orky/freeloader#readme"
 
 [dependency-groups]
 dev = [
